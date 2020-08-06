@@ -14,11 +14,13 @@ using System.IO;
 using System.Runtime.InteropServices;
 
 
+
 using Emgu.CV;
 using Emgu.CV.UI;
 using Emgu.Util;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
+using Excel = Microsoft.Office.Interop.Excel;
 
 
 namespace LaserBeamMeasurement
@@ -29,6 +31,7 @@ namespace LaserBeamMeasurement
     {
 
         bool hand_mode = false;
+        bool d3_mode = false;
 
         int mouse_x = 0;
         int mouse_y = 0;
@@ -43,10 +46,17 @@ namespace LaserBeamMeasurement
         private Capture _capture = null;
 
         private bool _captureInProgress;
+        private Excel.Application excelapp;
+        private Excel.Workbooks excelappworkbooks;
+        private Excel.Workbook excelappworkbook;
+        private Excel.Sheets excelsheets;
+        private Excel.Worksheet excelworksheet;
+        private Excel.Range excelcells;
 
         public Form1()
         {
             
+
             InitializeComponent();
 
    
@@ -55,6 +65,8 @@ namespace LaserBeamMeasurement
             dataGridView1.RowHeadersWidth = 78;
             dataGridView1.Rows[0].HeaderCell.Value = "FWHM";
             dataGridView1.Rows[1].HeaderCell.Value = "1/e^2";
+            dataGridView1.Rows.Add();
+            dataGridView1.Rows[2].HeaderCell.Value = "DIV";
 
             chart1.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
             chart2.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
@@ -70,7 +82,8 @@ namespace LaserBeamMeasurement
                 _capture = new Capture();
 
                 _capture.ImageGrabbed += ProcessFrame;
-         
+            
+
             }
             catch (NullReferenceException excpt)
             {
@@ -108,6 +121,7 @@ namespace LaserBeamMeasurement
 
             pictureBox1.Refresh();
             pictureBox4.Refresh();
+          
 
 
             double[] minVal;
@@ -135,7 +149,9 @@ namespace LaserBeamMeasurement
             //_imagedata.GraphFill(tothermo1);
              _imagedata.GraphFillRotate(tothermo1, _imagedata.ChartXstartX, _imagedata.ChartXstartY, _imagedata.ChartXstopX, _imagedata.ChartXstopY, true);
              _imagedata.GraphFillRotate(tothermo1, _imagedata.ChartYstartX, _imagedata.ChartYstartY, _imagedata.ChartYstopX, _imagedata.ChartYstopY, false);
-      
+             _imagedata.GraphFillRotate(tothermo1, _imagedata.ChartXstartX, _imagedata.ChartXstartY, _imagedata.ChartXstopX, _imagedata.ChartXstopY, true);
+             _imagedata.GraphFillRotate(tothermo1, _imagedata.ChartYstartX, _imagedata.ChartYstartY, _imagedata.ChartYstopX, _imagedata.ChartYstopY, false);
+
             // thresh calculate
             if (hand_mode)
             {
@@ -189,22 +205,57 @@ namespace LaserBeamMeasurement
             }
 
  
-             _imagedata.GraphFillRotate(grayFrame, _imagedata.ChartXstartX, _imagedata.ChartXstartY, _imagedata.ChartXstopX, _imagedata.ChartXstopY,true);
+
+            // fill 3D plot data
+            
+      
+            int width = 200;
+            int height = 200;
+
+            int k = 0;
+            int m = 0;
+            double rotation_angle = (int)numericUpDown1.Value * Math.PI/180;
+
+            double rotation_sin = Math.Sin(rotation_angle);
+            double rotation_cos = Math.Cos(rotation_angle);
+
+            for (int i = - width; i < width; i++)
+            {
+                for (int j = - height; j < height; j++)
+
+                {
+                    _imagedata.Graph3d[k, m] = grayFrame.Data[(int)(i * rotation_sin + j * rotation_cos) + _imagedata.centery, (int)(i* rotation_cos - j* rotation_sin) + _imagedata.centerx, 0];   //grayFrame.Bitmap.GetPixel(i, j).R;
+                    m++;
+                }
+
+                k++; m = 0;
+
+            }
+
+
+            /*
+
+            for (int i = _imagedata.centerx - width; i < _imagedata.centerx + width; i++)
+            {
+                for (int j = _imagedata.centery - height; j < _imagedata.centery + height; j++)
+
+                {
+                    _imagedata.Graph3d[k, m] = grayFrame.Data[j, i, 0];   //grayFrame.Bitmap.GetPixel(i, j).R;
+                    m++;
+                }
+
+                k++; m = 0;
+
+            } */
+
+
+
+            _imagedata.GraphFillRotate(grayFrame, _imagedata.ChartXstartX, _imagedata.ChartXstartY, _imagedata.ChartXstopX, _imagedata.ChartXstopY,true);
              _imagedata.GraphFillRotate(grayFrame, _imagedata.ChartYstartX, _imagedata.ChartYstartY, _imagedata.ChartYstopX, _imagedata.ChartYstopY,false);
 
-            // zero level calculate
-
-            //label9.Text = Convert.ToString(_imagedata.ChartX.Min());
-            
-
-           // if (!checkBox2.Checked)
+       
               _imagedata.zero_level = Convert.ToInt32(textBox2.Text);
-           //  else
-           // {
-         
-          //    textBox2.Text = Convert.ToString(_imagedata.zero_level);
-          //  }
-
+   
 
             // thresh calculate
             if (hand_mode)
@@ -231,6 +282,9 @@ namespace LaserBeamMeasurement
 
             if (filt)
             {
+                _beamparameters.sizex_med_filter = _beamparameters.sizex_med;
+                _beamparameters.sizey_med_filter = _beamparameters.sizey_med;
+
                 label3.Text = "FWHM:  " + Convert.ToString(_beamparameters.sizex_med * pixsize) + " um           1/e^2:  " + Convert.ToString(_beamparameters.sizex_e2 * pixsize) + " um";
                 label4.Text = "FWHM:  " + Convert.ToString(_beamparameters.sizey_med * pixsize) + " um           1/e^2:  " + Convert.ToString(_beamparameters.sizey_e2 * pixsize) + " um";
                 dataGridView1[2, 0].Value = Convert.ToString(_beamparameters.sizex_med * pixsize);
@@ -245,6 +299,12 @@ namespace LaserBeamMeasurement
                 chart4.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
                 chart3.Series["zero"].Points.DataBindY(_imagedata.zero);
                 chart4.Series["zero"].Points.DataBindY(_imagedata.zero);
+
+                for(int i=0;i< 2004;i++)
+                {
+                    _imagedata.ChartXfilter[i] = _imagedata.ChartX[i];
+                    _imagedata.ChartYfilter[i] = _imagedata.ChartY[i];
+                }
             }
             else
             {
@@ -340,6 +400,8 @@ namespace LaserBeamMeasurement
             dataGridView1[1, 0].Value = Convert.ToString(_beamparameters.sizey_med * pixsize);
             dataGridView1[0, 1].Value = Convert.ToString(_beamparameters.sizex_e2 * pixsize);
             dataGridView1[1, 1].Value = Convert.ToString(_beamparameters.sizey_e2 * pixsize);
+
+
 
 
             Graphics gr = e.Graphics;
@@ -573,6 +635,13 @@ namespace LaserBeamMeasurement
               
 
             }
+
+            else if(tabControl1.SelectedIndex == 2) // 3d mode
+            {
+              
+              
+            }
+
             else {
 
 
@@ -659,6 +728,276 @@ namespace LaserBeamMeasurement
                 ProcessStaticFrame(_imagedata.ImageFromFile, false);
             }
      
+        }
+
+        private void toolStripButton2_Click(object sender, EventArgs e)
+        {
+    
+             excelapp = new Excel.Application();
+             excelapp.Visible = true;
+
+             excelapp.SheetsInNewWorkbook = 3;
+             excelapp.Workbooks.Add(Type.Missing);
+          
+            
+            excelappworkbooks = excelapp.Workbooks;
+            excelappworkbook=excelappworkbooks[1];
+     
+            excelsheets = excelappworkbook.Worksheets;
+            excelworksheet = (Excel.Worksheet)excelsheets.get_Item(1);
+            excelworksheet.Activate();
+
+            // data x , data y ,xfilter,yfilter - to exel cells
+ 
+            for (int i = 2; i < _imagedata.spotsize + 4 ; i++)
+            {
+             
+                    excelcells = (Excel.Range)excelworksheet.Cells[i, 1];
+                    excelcells.Value2 = _imagedata.ChartX[i];
+                      
+            }
+
+            for (int i = 2; i < _imagedata.spotsize + 4; i++)
+            {
+
+                excelcells = (Excel.Range)excelworksheet.Cells[i, 2];
+                excelcells.Value2 = _imagedata.ChartY[i];
+
+            }
+
+            for (int i = 2; i < _imagedata.spotsize + 4; i++)
+            {
+
+                excelcells = (Excel.Range)excelworksheet.Cells[i, 4];
+                excelcells.Value2 = _imagedata.ChartXfilter[i];
+
+            }
+
+            for (int i = 2; i < _imagedata.spotsize + 4; i++)
+            {
+
+                excelcells = (Excel.Range)excelworksheet.Cells[i, 5];
+                excelcells.Value2 = _imagedata.ChartYfilter[i];
+
+            }
+
+            excelcells = excelworksheet.get_Range("A1", "A1");
+
+            excelcells.Value2 = " X ";
+            excelcells.Font.Size = 12;
+            excelcells.Font.Italic = true;
+            excelcells.Font.Bold = true;
+
+            excelcells = excelworksheet.get_Range("B1", "B1");
+
+            excelcells.Value2 = " Y ";
+            excelcells.Font.Size = 12;
+            excelcells.Font.Italic = true;
+            excelcells.Font.Bold = true;
+
+
+            excelcells = excelworksheet.get_Range("D1", "D1");
+
+            excelcells.Value2 = " X filter ";
+            excelcells.Font.Size = 12;
+            excelcells.Font.Italic = true;
+            excelcells.Font.Bold = true;
+
+            excelcells = excelworksheet.get_Range("E1", "E1");
+
+            excelcells.Value2 = " Y filter";
+            excelcells.Font.Size = 12;
+            excelcells.Font.Italic = true;
+            excelcells.Font.Bold = true;
+
+            excelcells = excelworksheet.get_Range("W11", "W11");
+
+            excelcells.Value2 = "pixel pitch(um):";
+            excelcells.Font.Size = 12;
+            excelcells.Font.Italic = true;
+            excelcells.Font.Bold = true;
+
+            excelcells = excelworksheet.get_Range("Y11", "Y11");
+
+            excelcells.Value2 = textBox1.Text;
+            excelcells.Font.Size = 12;
+            excelcells.Font.Italic = true;
+            excelcells.Font.Bold = true;
+
+            excelcells = excelworksheet.get_Range("W13", "W13");
+
+            excelcells.Value2 = "zero level:";
+            excelcells.Font.Size = 12;
+            excelcells.Font.Italic = true;
+            excelcells.Font.Bold = true;
+
+
+            excelcells = excelworksheet.get_Range("Y13", "Y13");
+
+            excelcells.Value2 = textBox2.Text;
+            excelcells.Font.Size = 12;
+            excelcells.Font.Italic = true;
+            excelcells.Font.Bold = true;
+
+            excelcells = excelworksheet.get_Range("H3", "H3");
+
+            excelcells.Value2 = label1.Text;
+            excelcells.Font.Size = 12;
+            excelcells.Font.Italic = true;
+            excelcells.Font.Bold = true;
+
+            excelcells = excelworksheet.get_Range("P3", "P3");
+
+            excelcells.Value2 = label2.Text;
+            excelcells.Font.Size = 12;
+            excelcells.Font.Italic = true;
+            excelcells.Font.Bold = true;
+
+
+            excelcells = excelworksheet.get_Range("H26", "H26");
+
+            excelcells.Value2 = label3.Text;
+            excelcells.Font.Size = 12;
+            excelcells.Font.Italic = true;
+            excelcells.Font.Bold = true;
+
+            excelcells = excelworksheet.get_Range("P26", "P26");
+
+            excelcells.Value2 = label4.Text;
+            excelcells.Font.Size = 12;
+            excelcells.Font.Italic = true;
+            excelcells.Font.Bold = true;
+
+           
+
+            // chart export
+
+            Excel.ChartObjects chartsobjrcts =
+            (Excel.ChartObjects)excelworksheet.ChartObjects(Type.Missing);
+            Excel.ChartObject chartsobjrct = chartsobjrcts.Add(300, 50, 300, 300);
+            chartsobjrct.Chart.ChartWizard(excelworksheet.get_Range("A1", "A"+ Convert.ToString(_imagedata.spotsize + 20)),
+            Excel.XlChartType.xlLine, 2, Excel.XlRowCol.xlColumns, Type.Missing,
+              1, true, " ", Type.Missing);
+
+
+            Excel.ChartObject chartsobjrct1 = chartsobjrcts.Add(700, 50, 300, 300);
+            chartsobjrct1.Chart.ChartWizard(excelworksheet.get_Range("B1", "B"+ Convert.ToString(_imagedata.spotsize + 20)),
+            Excel.XlChartType.xlLine, 2, Excel.XlRowCol.xlColumns, Type.Missing,
+              1, true, " ", Type.Missing);
+
+
+            Excel.ChartObject chartsobjrct2 = chartsobjrcts.Add(300, 400, 300, 300);
+            chartsobjrct2.Chart.ChartWizard(excelworksheet.get_Range("D1", "D"+Convert.ToString(_imagedata.spotsize + 20)),
+            Excel.XlChartType.xlLine, 2, Excel.XlRowCol.xlColumns, Type.Missing,
+              1, true, " ", Type.Missing);
+
+            Excel.ChartObject chartsobjrct3 = chartsobjrcts.Add(700, 400, 300, 300);
+            chartsobjrct3.Chart.ChartWizard(excelworksheet.get_Range("E1", "E"+ Convert.ToString(_imagedata.spotsize + 20)),
+            Excel.XlChartType.xlLine, 2, Excel.XlRowCol.xlColumns, Type.Missing,
+              1, true, " ", Type.Missing);
+     
+
+
+           
+
+
+
+        }
+
+      
+
+ 
+        private void checkBox2_CheckStateChanged(object sender, EventArgs e)
+        {
+            if (checkBox2.Checked)
+            {
+                label9.Visible = true; listBox1.Visible = true;
+            }
+            else
+            {
+                label9.Visible = false; listBox1.Visible = false;
+            }
+            
+        }
+
+        private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            dataGridView1[0, 2].Value = Convert.ToString(((_beamparameters.sizex_med * pixsize / 1000) / _imagedata.wavelength[listBox1.SelectedIndex])*180/Math.PI);
+            dataGridView1[1, 2].Value = Convert.ToString(((_beamparameters.sizey_med * pixsize / 1000) / _imagedata.wavelength[listBox1.SelectedIndex]) * 180 / Math.PI);
+            dataGridView1[2, 2].Value = Convert.ToString(((_beamparameters.sizex_med_filter * pixsize / 1000) / _imagedata.wavelength[listBox1.SelectedIndex]) * 180 / Math.PI);
+            dataGridView1[3, 2].Value = Convert.ToString(((_beamparameters.sizey_med_filter * pixsize / 1000) / _imagedata.wavelength[listBox1.SelectedIndex]) * 180 / Math.PI);
+
+
+        }
+
+        private void button2_Click_1(object sender, EventArgs e)
+        {
+
+
+     int n = 400, m = 400, i, j, nlev = 20;
+     float [,] zmat = new float [n,m];
+     float [] xray = new float [n];
+     float [] yray = new float [m];
+     float [] zlev = new float [nlev];
+
+     double x, y, step;
+     double stepx = 400.0 / (n-1);
+     double stepy = 400.0 / (m-1);
+
+     
+     for (i = 0; i < n; i++) {
+       x = i * stepx;
+       xray[i] = (float) x;
+       for (j = 0; j < m; j++) {
+         y = j * stepy;
+         yray[j] = (float) y;
+         zmat[i, j] =  _imagedata.Graph3d[i,j];
+       }
+     }
+       
+     dislin.scrmod ("revers");
+     dislin.metafl ("cons");
+     dislin.setpag ("da4p");
+     dislin.disini ();
+     dislin.pagera ();
+     dislin.hwfont ();
+
+     dislin.axspos (200, 2600);
+     dislin.axslen (1800, 1800);
+         
+     dislin.name   ("X-axis", "x");
+     dislin.name   ("Y-axis",  "y");
+     dislin.name   ("Z-axis",  "z");
+
+     dislin.titlin ("       ", 1);
+     dislin.titlin ("       ", 3);
+
+    /* dislin.graf3d (0.0f, 360.0f, 0.0f, 90.0f,
+                    0.0f, 360.0f, 0.0f, 90.0f,
+                    -5.0f, 5.0f, -5.0f, 5.0f);*/
+            dislin.graf3d(0.0f, 400.0f, 0.0f, 90.0f,
+                          0.0f, 400.0f, 0.0f, 90.0f,
+                          0f, 256f, 0f, 256f);
+            dislin.height (50);
+     dislin.title  ();
+ 
+     dislin.grfini (-1.0f, -1.0f, -1.0f, 1.0f, -1.0f, -1.0f,
+                    1.0f, 1.0f, -1.0f);
+     dislin.nograf ();
+     dislin.graf (0.0f, 400.0f, 0.0f, 90.0f, 0.0f, 400.0f, 0.0f, 90.0f);
+     step = 4.0 / nlev;
+     for (i = 0; i < nlev; i++)
+       zlev[i] = (float) (-2.0 + i * step); 
+
+    // dislin.conshd (xray, n, yray, n, zmat, zlev, nlev);
+     dislin.box2d ();
+     dislin.reset ("nograf");
+     dislin.grffin ();
+
+     dislin.shdmod  ("smooth", "surface");
+     dislin.surshd (xray, n, yray, m, zmat);
+     dislin.disfin ();
+
         }
     }
 

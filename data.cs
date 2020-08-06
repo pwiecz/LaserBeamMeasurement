@@ -22,8 +22,11 @@ namespace LaserBeamMeasurement
         public int centerx=300;
         public int centery=300;
 
+        public int centerm_x;
+        public int centerm_y;
+
         public int spotsize=300;
-        public int maxspotsize=1000;
+        public int maxspotsize=3000;
 
         public int ChartXstartX=200;
         public int ChartXstartY=200;
@@ -37,16 +40,21 @@ namespace LaserBeamMeasurement
         public int ChartYstopX=210;
         public int ChartYstopY=210;
 
-        public const int MaxImageSizeX=2004;
-        public const int MaxImageSizeY=2004;
+        public const int MaxImageSizeX=4004;
+        public const int MaxImageSizeY=4004;
 
         public int[] ChartX = new int[MaxImageSizeX];
         public int[] ChartY = new int[MaxImageSizeY];
+        public int[] ChartXfilter = new int[MaxImageSizeX];
+        public int[] ChartYfilter = new int[MaxImageSizeY];
 
         public int[] TreshMedX = new int[MaxImageSizeX];
         public int[] TreshE2X = new int[MaxImageSizeY];
 
         public int[] zero = new int[MaxImageSizeX];
+
+        public byte[,] Graph3d = new byte[400, 400];
+
         public int zero_level;
 
         public int MaxX;
@@ -60,6 +68,9 @@ namespace LaserBeamMeasurement
         public int graphics_size;
 
         public bool handzero = false;
+
+       
+        public float[] wavelength = { 7.55f, 7.64f, 7.79f, 7.85f, 7.87f, 7.93f, 7.95f, 7.99f, 8.02f, 8.05f, 8.07f };
 
 
 
@@ -239,6 +250,26 @@ namespace LaserBeamMeasurement
 
         }
 
+        public void Center(Image<Gray, Byte> gf)
+        {
+            long sum = 0;
+            long muli = 0;
+            long mulj = 0;
+            uint pix;
+
+            for (int i = centerx - 150; i < centerx+150; i++)
+                for (int j = centery - 150; j < centery+150; j++)
+                {
+                    pix = gf.Bitmap.GetPixel(i, j).R;
+                    sum += pix;
+                    muli += pix * i;
+                    mulj += pix * j;
+                }
+
+            centerm_y = (int) (mulj / sum);
+            centerm_x = (int) (muli / sum);
+        }
+
         public void MakeFalse(Bitmap bmp) // false color 
         {
 
@@ -257,9 +288,68 @@ namespace LaserBeamMeasurement
             Marshal.Copy(ptr, rgbValues, 0, numBytes);
 
 
+
             for (int counter = 0; counter < rgbValues.Length; counter += 3)
             {
 
+                if (rgbValues[counter] >= 0 && rgbValues[counter] <= 41)  // violet - blue
+                {
+                    rgbValues[counter + 2] = (byte)(139 - 139 / 42 * rgbValues[counter]);                       // R
+                    rgbValues[counter + 1] = 0;                                                             // G
+                    rgbValues[counter] = 255;                                                               // B  
+
+
+                }
+
+                else if (rgbValues[counter] >= 42 && rgbValues[counter] <= 83) // blue - light blue
+                {
+                    rgbValues[counter + 2] = 0;   // R
+                    rgbValues[counter + 1] = (byte)(255 / 42 * (rgbValues[counter] - 42)); ;   // G
+                    rgbValues[counter] = 255;     // B
+
+                }
+
+           
+                else if (rgbValues[counter] >= 84 && rgbValues[counter] <= 125)  // light blue - green
+                {
+                    rgbValues[counter + 2] = 0;    // R
+                    rgbValues[counter + 1] = 255;  // G
+                    rgbValues[counter] = (byte)(255 - 255 / 42 * (rgbValues[counter] - 84)); ; // B
+
+
+
+                }
+
+                else if (rgbValues[counter] >= 126 && rgbValues[counter] <= 167) // green - yellow
+                {
+                    rgbValues[counter + 2] = (byte)((255 / 42 * (rgbValues[counter] - 126))); ; // R
+                    rgbValues[counter + 1] = 255; // G
+                    rgbValues[counter] = 0; // B
+
+                }
+
+
+               
+                else if (rgbValues[counter] >= 168 && rgbValues[counter] <= 209) // yellow - orange
+                {
+                    
+                    rgbValues[counter + 2] = 255; // R
+                    rgbValues[counter + 1] = (byte)(255 - (127 / 42 * (rgbValues[counter] - 167))); // G
+                    rgbValues[counter] = 0;      // B
+                }
+               
+                else if (rgbValues[counter] >= 210 && rgbValues[counter] <= 255) // orange - red
+                {
+                    rgbValues[counter + 2] = 255; // R
+                    rgbValues[counter + 1] = (byte)(127 - (127 / 42 * (rgbValues[counter] - 213))); ; // G
+                    rgbValues[counter] = 0;      // B
+                }
+
+
+
+
+
+                /*
                 if (rgbValues[counter] >= 0 && rgbValues[counter] <= 63)
                 {
                     rgbValues[counter + 2] = 0;
@@ -287,7 +377,7 @@ namespace LaserBeamMeasurement
                     rgbValues[counter + 1] = (byte)(255 - (255 / (255 - 191) * (rgbValues[counter] - 191)));
                     rgbValues[counter + 2] = 255;
                 }
-
+                */
 
             }
 
@@ -308,8 +398,15 @@ namespace LaserBeamMeasurement
     {
         public int sizex_med;
         public int sizey_med;
+        public int sizex_med_filter;
+        public int sizey_med_filter;
+
         public int sizex_e2;
         public int sizey_e2;
+        public float divx = 0;
+        public float divy = 0;
+        public float divx_filter = 0;
+        public float divy_filter = 0;
 
 
         public void BeamSizeDetect(double tresh_med, double tresh_e2, ImageData imdata)
