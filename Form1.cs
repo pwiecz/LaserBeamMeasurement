@@ -31,7 +31,6 @@ namespace LaserBeamMeasurement
     {
 
         bool hand_mode = false;
-        bool d3_mode = false;
 
         int mouse_x = 0;
         int mouse_y = 0;
@@ -43,7 +42,7 @@ namespace LaserBeamMeasurement
         ImageData _imagedata = new ImageData();
         BeamParameters _beamparameters = new BeamParameters();
 
-        private Capture _capture = null;
+        private VideoCapture _capture = null;
 
         private bool _captureInProgress;
         private Excel.Application excelapp;
@@ -79,7 +78,7 @@ namespace LaserBeamMeasurement
 
             try
             {
-                _capture = new Capture();
+                _capture = new VideoCapture();
 
                 _capture.ImageGrabbed += ProcessFrame;
             
@@ -114,57 +113,59 @@ namespace LaserBeamMeasurement
             OrgImage = tothermo.ToBitmap();
             OrgImage1 = tothermo.ToBitmap();
 
-            pictureBox4.Image = OrgImage1;
+            Invoke((MethodInvoker)(
+                () =>
+                {
+                    pictureBox4.Image = OrgImage1;
+                    pictureBox4.Refresh();
+                    _imagedata.MakeFalse((Bitmap)OrgImage);
+                    pictureBox1.Image = OrgImage;
+                    pictureBox1.Refresh();
+                    double[] minVal;
+                    double[] maxVal;
+                    System.Drawing.Point[] minLoc;
+                    System.Drawing.Point[] maxLoc;
+                    grayFrame.MinMax(out minVal, out maxVal, out minLoc, out maxLoc);
 
-            _imagedata.MakeFalse((Bitmap)OrgImage);
-            pictureBox1.Image = OrgImage;
+                    _imagedata.sizex = OrgImage.Width;
+                    _imagedata.sizey = OrgImage.Height;
 
-            pictureBox1.Refresh();
-            pictureBox4.Refresh();
-          
+                    if (hand_mode)
+                    {
+                        _imagedata.centerx = mouse_x;
+                        _imagedata.centery = mouse_y;
+                    }
+                    else
+                    {
+                        _imagedata.centerx = maxLoc[0].X;
+                        _imagedata.centery = maxLoc[0].Y;
+                    }
+
+                    pictureBox1.Refresh();
+                    pictureBox4.Refresh();
+                    
+                    //_imagedata.GraphFill(tothermo1);
+                    _imagedata.GraphFillRotate(tothermo1, _imagedata.ChartXstartX, _imagedata.ChartXstartY, _imagedata.ChartXstopX, _imagedata.ChartXstopY, true);
+                    _imagedata.GraphFillRotate(tothermo1, _imagedata.ChartYstartX, _imagedata.ChartYstartY, _imagedata.ChartYstopX, _imagedata.ChartYstopY, false);
+                    _imagedata.GraphFillRotate(tothermo1, _imagedata.ChartXstartX, _imagedata.ChartXstartY, _imagedata.ChartXstopX, _imagedata.ChartXstopY, true);
+                    _imagedata.GraphFillRotate(tothermo1, _imagedata.ChartYstartX, _imagedata.ChartYstartY, _imagedata.ChartYstopX, _imagedata.ChartYstopY, false);
+
+                    // thresh calculate
+                    if (hand_mode)
+                    {
+                        thresh_med = grayFrame.Bitmap.GetPixel(_imagedata.centerx, _imagedata.centery).R / 2;
+                        thresh_e2 = grayFrame.Bitmap.GetPixel(_imagedata.centerx, _imagedata.centery).R / Math.Exp(2);
+                    }
+                    else
+                    {
+                        thresh_med = maxVal[0] / 2;
+                        thresh_e2 = maxVal[0] / Math.Exp(2);
+                    }
+
+                    _beamparameters.BeamSizeDetect(thresh_med, thresh_e2, _imagedata);
 
 
-            double[] minVal;
-            double[] maxVal;
-            System.Drawing.Point[] minLoc;
-            System.Drawing.Point[] maxLoc;
-            grayFrame.MinMax(out minVal, out maxVal, out minLoc, out maxLoc);
-
-            _imagedata.sizex = OrgImage.Width;
-            _imagedata.sizey = OrgImage.Height;
-
-            if (hand_mode)
-            {
-                _imagedata.centerx = mouse_x;
-                _imagedata.centery = mouse_y;
-            }
-            else
-            {
-                _imagedata.centerx = maxLoc[0].X;
-                _imagedata.centery = maxLoc[0].Y;
-            }
-            pictureBox1.Refresh();
-            pictureBox4.Refresh();
-
-            //_imagedata.GraphFill(tothermo1);
-             _imagedata.GraphFillRotate(tothermo1, _imagedata.ChartXstartX, _imagedata.ChartXstartY, _imagedata.ChartXstopX, _imagedata.ChartXstopY, true);
-             _imagedata.GraphFillRotate(tothermo1, _imagedata.ChartYstartX, _imagedata.ChartYstartY, _imagedata.ChartYstopX, _imagedata.ChartYstopY, false);
-             _imagedata.GraphFillRotate(tothermo1, _imagedata.ChartXstartX, _imagedata.ChartXstartY, _imagedata.ChartXstopX, _imagedata.ChartXstopY, true);
-             _imagedata.GraphFillRotate(tothermo1, _imagedata.ChartYstartX, _imagedata.ChartYstartY, _imagedata.ChartYstopX, _imagedata.ChartYstopY, false);
-
-            // thresh calculate
-            if (hand_mode)
-            {
-                thresh_med = grayFrame.Bitmap.GetPixel(_imagedata.centerx, _imagedata.centery).R / 2;
-                thresh_e2 = grayFrame.Bitmap.GetPixel(_imagedata.centerx, _imagedata.centery).R / Math.Exp(2);
-            }
-            else
-            {
-                thresh_med = maxVal[0] / 2;
-                thresh_e2 = maxVal[0] / Math.Exp(2);
-            }
-
-            _beamparameters.BeamSizeDetect(thresh_med, thresh_e2, _imagedata);
+                }));
 
 
 
@@ -224,7 +225,13 @@ namespace LaserBeamMeasurement
                 for (int j = - height; j < height; j++)
 
                 {
-                    _imagedata.Graph3d[k, m] = grayFrame.Data[(int)(i * rotation_sin + j * rotation_cos) + _imagedata.centery, (int)(i* rotation_cos - j* rotation_sin) + _imagedata.centerx, 0];   //grayFrame.Bitmap.GetPixel(i, j).R;
+                    int grayFrameX = (int)(i * rotation_sin + j * rotation_cos) + _imagedata.centery;
+                    int grayFrameY = (int)(i * rotation_cos - j * rotation_sin) + _imagedata.centerx;
+                    if (grayFrameX >= 0 && grayFrameX < grayFrame.Data.GetLength(0) &&
+                        grayFrameY >= 0 && grayFrameY < grayFrame.Data.GetLength(1))
+                    {
+                        _imagedata.Graph3d[k, m] = grayFrame.Data[grayFrameX, grayFrameY, 0];   //grayFrame.Bitmap.GetPixel(i, j).R;
+                    }
                     m++;
                 }
 
