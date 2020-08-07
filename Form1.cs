@@ -79,7 +79,8 @@ namespace LaserBeamMeasurement
             try
             {
                 _capture = new VideoCapture();
-
+                _capture.SetCaptureProperty(CapProp.FrameWidth, 1920);
+                _capture.SetCaptureProperty(CapProp.FrameHeight, 1080);
                 _capture.ImageGrabbed += ProcessFrame;
 
 
@@ -401,6 +402,11 @@ namespace LaserBeamMeasurement
             chart2.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
             chart1.Series["zero"].Points.DataBindY(_imagedata.zero);
             chart2.Series["zero"].Points.DataBindY(_imagedata.zero);
+
+            chart1.Update();
+            chart2.Update();
+            chart3.Update();
+            chart4.Update();
 
 
             dataGridView1[0, 0].Value = Convert.ToString(_beamparameters.sizex_med * pixsize);
@@ -1013,9 +1019,8 @@ namespace LaserBeamMeasurement
         }
     }
 
-
-}
-
+   
+    }
 
 
 
