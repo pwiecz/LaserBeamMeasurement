@@ -3,11 +3,7 @@ using System.Runtime.InteropServices;
 using System.Drawing;
 using System.Drawing.Imaging;
 
-
 using Emgu.CV;
-using Emgu.CV.UI;
-using Emgu.Util;
-using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 
 namespace LaserBeamMeasurement
@@ -69,6 +65,8 @@ namespace LaserBeamMeasurement
 
         public bool handzero = false;
 
+        public Rectangle boundRect_e2 = new Rectangle(0, 0, 0, 0);
+        public Rectangle boundRect_med = new Rectangle(0, 0, 0, 0);
 
         public float[] wavelength = { 7.55f, 7.64f, 7.79f, 7.85f, 7.87f, 7.93f, 7.95f, 7.99f, 8.02f, 8.05f, 8.07f };
 
@@ -203,7 +201,7 @@ namespace LaserBeamMeasurement
         }
 
 
-
+        /*
         public void GraphFill(Image<Gray, Byte> gf)
         {
 
@@ -248,7 +246,7 @@ namespace LaserBeamMeasurement
             }
 
 
-        }
+        }*/
 
         public void Center(Image<Gray, Byte> gf)
         {
@@ -408,6 +406,8 @@ namespace LaserBeamMeasurement
         public float divx_filter = 0;
         public float divy_filter = 0;
 
+        public Rectangle boundRect_e2;
+        public Rectangle boundRect_med;
 
         public void BeamSizeDetect(double tresh_med, double tresh_e2, ImageData imdata)
         {
@@ -462,6 +462,8 @@ namespace LaserBeamMeasurement
 
             sizey_e2 = stop - start;
 
+            boundRect_e2 = imdata.boundRect_e2;
+            boundRect_med = imdata.boundRect_med;
         }
     }
 

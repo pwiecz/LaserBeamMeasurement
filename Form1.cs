@@ -1,23 +1,10 @@
 ﻿
 
 using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
 using System.Drawing;
-using System.Drawing.Imaging;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.IO;
-using System.Runtime.InteropServices;
-
-
 
 using Emgu.CV;
-using Emgu.CV.UI;
-using Emgu.Util;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Excel = Microsoft.Office.Interop.Excel;
@@ -117,30 +104,29 @@ namespace LaserBeamMeasurement
             Invoke((MethodInvoker)(
                 () =>
                 {
-                    pictureBox4.Image = OrgImage1;
-                    pictureBox4.Refresh();
-                    _imagedata.MakeFalse((Bitmap)OrgImage);
-                    pictureBox1.Image = OrgImage;
-                    pictureBox1.Refresh();
-                    double[] minVal;
-                    double[] maxVal;
-                    System.Drawing.Point[] minLoc;
-                    System.Drawing.Point[] maxLoc;
-                    grayFrame.MinMax(out minVal, out maxVal, out minLoc, out maxLoc);
+                pictureBox4.Image = OrgImage1;
+                pictureBox4.Refresh();
+                _imagedata.MakeFalse((Bitmap)OrgImage);
+                pictureBox1.Image = OrgImage;
+                pictureBox1.Refresh();
+                double[] minVal;
+                double[] maxVal;
+                System.Drawing.Point[] minLoc;
+                System.Drawing.Point[] maxLoc;
+                grayFrame.MinMax(out minVal, out maxVal, out minLoc, out maxLoc);
+                _imagedata.sizex = OrgImage.Width;
+                _imagedata.sizey = OrgImage.Height;
 
-                    _imagedata.sizex = OrgImage.Width;
-                    _imagedata.sizey = OrgImage.Height;
-
-                    if (hand_mode)
-                    {
-                        _imagedata.centerx = mouse_x;
-                        _imagedata.centery = mouse_y;
-                    }
-                    else
-                    {
-                        _imagedata.centerx = maxLoc[0].X;
-                        _imagedata.centery = maxLoc[0].Y;
-                    }
+                if (hand_mode)
+                {
+                    _imagedata.centerx = mouse_x;
+                    _imagedata.centery = mouse_y;
+                }
+                else
+                {
+                    _imagedata.centerx = maxLoc[0].X;
+                    _imagedata.centery = maxLoc[0].Y;
+                }
 
                     pictureBox1.Refresh();
                     pictureBox4.Refresh();
@@ -163,9 +149,24 @@ namespace LaserBeamMeasurement
                         thresh_e2 = maxVal[0] / Math.Exp(2);
                     }
 
+                    {
+                        Image<Gray, Byte> threshold = new Image<Gray, byte>(grayFrame.Width, grayFrame.Height);
+                        CvInvoke.Threshold(grayFrame, threshold, thresh_e2, 100, ThresholdType.Binary);
+                        System.Drawing.Rectangle boundRect_e2 = new System.Drawing.Rectangle();
+                        CvInvoke.FloodFill(threshold, null, new System.Drawing.Point(_imagedata.centerx, _imagedata.centery), new MCvScalar(1),
+                            out boundRect_e2, new MCvScalar(5), new MCvScalar(1), Connectivity.FourConnected, FloodFillType.MaskOnly);
+                        _imagedata.boundRect_e2 = boundRect_e2;
+                    }
+                    {
+                        Image<Gray, Byte> threshold = new Image<Gray, byte>(grayFrame.Width, grayFrame.Height);
+                        CvInvoke.Threshold(grayFrame, threshold, thresh_med, 100, ThresholdType.Binary);
+                        System.Drawing.Rectangle boundRect_med = new System.Drawing.Rectangle();
+                        CvInvoke.FloodFill(threshold, null, new System.Drawing.Point(_imagedata.centerx, _imagedata.centery), new MCvScalar(1),
+                            out boundRect_med, new MCvScalar(5), new MCvScalar(1), Connectivity.FourConnected, FloodFillType.MaskOnly);
+                        _imagedata.boundRect_med = boundRect_med;
+                    }
+
                     _beamparameters.BeamSizeDetect(thresh_med, thresh_e2, _imagedata);
-
-
                 }));
 
 
@@ -276,7 +277,22 @@ namespace LaserBeamMeasurement
                 thresh_med = (maxVal[0] - _imagedata.zero_level) / 2 + _imagedata.zero_level;
                 thresh_e2 = (maxVal[0] - _imagedata.zero_level) / Math.Exp(2) + _imagedata.zero_level;
             }
-
+            {
+                Image<Gray, Byte> threshold = new Image<Gray, byte>(grayFrame.Width, grayFrame.Height);
+                CvInvoke.Threshold(grayFrame, threshold, thresh_e2, 100, ThresholdType.Binary);
+                System.Drawing.Rectangle boundRect_e2 = new System.Drawing.Rectangle();
+                CvInvoke.FloodFill(threshold, null, new System.Drawing.Point(_imagedata.centerx, _imagedata.centery), new MCvScalar(1),
+                    out boundRect_e2, new MCvScalar(5), new MCvScalar(1), Connectivity.FourConnected, FloodFillType.MaskOnly);
+                _imagedata.boundRect_e2 = boundRect_e2;
+            }
+            {
+                Image<Gray, Byte> threshold = new Image<Gray, byte>(grayFrame.Width, grayFrame.Height);
+                CvInvoke.Threshold(grayFrame, threshold, thresh_med, 100, ThresholdType.Binary);
+                System.Drawing.Rectangle boundRect_med = new System.Drawing.Rectangle();
+                CvInvoke.FloodFill(threshold, null, new System.Drawing.Point(_imagedata.centerx, _imagedata.centery), new MCvScalar(1),
+                    out boundRect_med, new MCvScalar(5), new MCvScalar(1), Connectivity.FourConnected, FloodFillType.MaskOnly);
+                _imagedata.boundRect_med = boundRect_med;
+            }
             _beamparameters.BeamSizeDetect(thresh_med, thresh_e2, _imagedata);
 
             for (int i = 0; i < _imagedata.TreshE2X.Length; i++)
@@ -299,6 +315,10 @@ namespace LaserBeamMeasurement
                 dataGridView1[3, 0].Value = Convert.ToString(_beamparameters.sizey_med * pixsize);
                 dataGridView1[2, 1].Value = Convert.ToString(_beamparameters.sizex_e2 * pixsize);
                 dataGridView1[3, 1].Value = Convert.ToString(_beamparameters.sizey_e2 * pixsize);
+                dataGridView1[6, 0].Value = Convert.ToString(_beamparameters.boundRect_med.Width * pixsize);
+                dataGridView1[7, 0].Value = Convert.ToString(_beamparameters.boundRect_med.Height * pixsize);
+                dataGridView1[6, 1].Value = Convert.ToString(_beamparameters.boundRect_e2.Width * pixsize);
+                dataGridView1[7, 1].Value = Convert.ToString(_beamparameters.boundRect_e2.Height * pixsize);
                 chart3.Series["x filter"].Points.DataBindY(_imagedata.ChartX);
                 chart4.Series["y filter"].Points.DataBindY(_imagedata.ChartY);
                 chart3.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
@@ -332,11 +352,12 @@ namespace LaserBeamMeasurement
                 dataGridView1[1, 0].Value = Convert.ToString(_beamparameters.sizey_med * pixsize);
                 dataGridView1[0, 1].Value = Convert.ToString(_beamparameters.sizex_e2 * pixsize);
                 dataGridView1[1, 1].Value = Convert.ToString(_beamparameters.sizey_e2 * pixsize);
+                dataGridView1[4, 0].Value = Convert.ToString(_beamparameters.boundRect_med.Width * pixsize);
+                dataGridView1[5, 0].Value = Convert.ToString(_beamparameters.boundRect_med.Height * pixsize);
+                dataGridView1[4, 1].Value = Convert.ToString(_beamparameters.boundRect_e2.Width * pixsize);
+                dataGridView1[5, 1].Value = Convert.ToString(_beamparameters.boundRect_e2.Height * pixsize);
             }
-
-
-            pictureBox3.Refresh(); pictureBox2.Refresh();
-
+            dataGridView1.Refresh();
         }
 
         private void button1_Click(object sender, EventArgs e)
@@ -382,6 +403,10 @@ namespace LaserBeamMeasurement
             dataGridView1[3, 0].Value = Convert.ToString(_beamparameters.sizey_med * pixsize);
             dataGridView1[2, 1].Value = Convert.ToString(_beamparameters.sizex_e2 * pixsize);
             dataGridView1[3, 1].Value = Convert.ToString(_beamparameters.sizey_e2 * pixsize);
+            dataGridView1[6, 0].Value = Convert.ToString(_beamparameters.boundRect_med.Width * pixsize);
+            dataGridView1[7, 0].Value = Convert.ToString(_beamparameters.boundRect_med.Height * pixsize);
+            dataGridView1[6, 1].Value = Convert.ToString(_beamparameters.boundRect_e2.Width * pixsize);
+            dataGridView1[7, 1].Value = Convert.ToString(_beamparameters.boundRect_e2.Height * pixsize);
             chart3.Series["x filter"].Points.DataBindY(_imagedata.ChartX);
             chart4.Series["y filter"].Points.DataBindY(_imagedata.ChartY);
             chart3.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
@@ -415,7 +440,7 @@ namespace LaserBeamMeasurement
             dataGridView1[1, 1].Value = Convert.ToString(_beamparameters.sizey_e2 * pixsize);
 
 
-
+            dataGridView1.Refresh();
 
             Graphics gr = e.Graphics;
             drawmark(gr, Color.Red);
@@ -453,9 +478,13 @@ namespace LaserBeamMeasurement
 
                 pictureBox4.Refresh();
                 pictureBox3.Refresh();
+                pictureBox2.Refresh();
 
-                ProcessStaticFrame(t, true);
+                /*ProcessStaticFrame(t, true);
                 ProcessStaticFrame(t, false);
+
+                pictureBox3.Refresh();
+                pictureBox2.Refresh();*/
 
                 no_image = false;
 
@@ -498,8 +527,9 @@ namespace LaserBeamMeasurement
             ProcessStaticFrame(_imagedata.ImageFromFile, true);
             ProcessStaticFrame(_imagedata.ImageFromFile, false);
             pictureBox2.Refresh(); pictureBox3.Refresh();
-            ProcessStaticFrame(_imagedata.ImageFromFile, true);
-            ProcessStaticFrame(_imagedata.ImageFromFile, false);
+            //ProcessStaticFrame(_imagedata.ImageFromFile, true);
+            //ProcessStaticFrame(_imagedata.ImageFromFile, false);
+
         }
 
         private void pictureBox3_MouseClick(object sender, MouseEventArgs e)
@@ -511,8 +541,8 @@ namespace LaserBeamMeasurement
             ProcessStaticFrame(_imagedata.ImageFromFile, true);
             ProcessStaticFrame(_imagedata.ImageFromFile, false);
             pictureBox3.Refresh(); pictureBox2.Refresh();
-            ProcessStaticFrame(_imagedata.ImageFromFile, true);
-            ProcessStaticFrame(_imagedata.ImageFromFile, false);
+            //ProcessStaticFrame(_imagedata.ImageFromFile, true);
+            //ProcessStaticFrame(_imagedata.ImageFromFile, false);
         }
 
         private void pictureBox3_Paint(object sender, PaintEventArgs e)
@@ -544,8 +574,9 @@ namespace LaserBeamMeasurement
                 pixsize = Convert.ToDouble(textBox1.Text);
                 ProcessStaticFrame(_imagedata.ImageFromFile, true);
                 ProcessStaticFrame(_imagedata.ImageFromFile, false);
-                ProcessStaticFrame(_imagedata.ImageFromFile, true);
-                ProcessStaticFrame(_imagedata.ImageFromFile, false);
+                //ProcessStaticFrame(_imagedata.ImageFromFile, true);
+                //ProcessStaticFrame(_imagedata.ImageFromFile, false);
+                pictureBox3.Refresh(); pictureBox2.Refresh();
             }
         }
 
@@ -567,8 +598,10 @@ namespace LaserBeamMeasurement
                 _imagedata.zero_level = Convert.ToInt16(textBox2.Text);
                 ProcessStaticFrame(_imagedata.ImageFromFile, true);
                 ProcessStaticFrame(_imagedata.ImageFromFile, false);
-                ProcessStaticFrame(_imagedata.ImageFromFile, true);
-                ProcessStaticFrame(_imagedata.ImageFromFile, false);
+                
+                pictureBox3.Refresh(); pictureBox2.Refresh();
+                //ProcessStaticFrame(_imagedata.ImageFromFile, true);
+                //ProcessStaticFrame(_imagedata.ImageFromFile, false);
             }
         }
 
@@ -586,8 +619,9 @@ namespace LaserBeamMeasurement
 
             ProcessStaticFrame(_imagedata.ImageFromFile, true);
             ProcessStaticFrame(_imagedata.ImageFromFile, false);
-            ProcessStaticFrame(_imagedata.ImageFromFile, true);
-            ProcessStaticFrame(_imagedata.ImageFromFile, false);
+            //ProcessStaticFrame(_imagedata.ImageFromFile, true);
+            //ProcessStaticFrame(_imagedata.ImageFromFile, false);
+            pictureBox3.Refresh(); pictureBox2.Refresh();
         }
 
         private void pictureBox4_MouseClick(object sender, MouseEventArgs e)
@@ -597,9 +631,10 @@ namespace LaserBeamMeasurement
             mouse_x = e.X;
             mouse_y = e.Y;
             ProcessStaticFrame(_imagedata.ImageFromFile, true);
-            ProcessStaticFrame(_imagedata.ImageFromFile, false); pictureBox2.Refresh(); pictureBox3.Refresh();
-            ProcessStaticFrame(_imagedata.ImageFromFile, true);
             ProcessStaticFrame(_imagedata.ImageFromFile, false);
+            pictureBox2.Refresh(); pictureBox3.Refresh();
+            //ProcessStaticFrame(_imagedata.ImageFromFile, true);
+            //ProcessStaticFrame(_imagedata.ImageFromFile, false);
         }
 
         private void textBox3_TextChanged(object sender, EventArgs e)
@@ -631,8 +666,8 @@ namespace LaserBeamMeasurement
                             ProcessStaticFrame(_imagedata.ImageFromFile, true);
                             ProcessStaticFrame(_imagedata.ImageFromFile, false);
                             pictureBox2.Refresh(); pictureBox3.Refresh();
-                            ProcessStaticFrame(_imagedata.ImageFromFile, true);
-                            ProcessStaticFrame(_imagedata.ImageFromFile, false);
+                            //ProcessStaticFrame(_imagedata.ImageFromFile, true);
+                            //ProcessStaticFrame(_imagedata.ImageFromFile, false);
                         }
                     }
                 }
@@ -724,7 +759,8 @@ namespace LaserBeamMeasurement
             gr.DrawLine(axis, p3, p4);
             axis.Color = Color.White;
             gr.DrawEllipse(axis, _imagedata.centerx - _imagedata.spotsize / 2, _imagedata.centery - _imagedata.spotsize / 2, _imagedata.spotsize, _imagedata.spotsize);
-
+            axis.Color = Color.Orange;
+            gr.DrawRectangle(axis, _imagedata.boundRect_e2);
         }
 
         private void numericUpDown1_ValueChanged(object sender, EventArgs e)
@@ -740,8 +776,9 @@ namespace LaserBeamMeasurement
             {
                 ProcessStaticFrame(_imagedata.ImageFromFile, true);
                 ProcessStaticFrame(_imagedata.ImageFromFile, false);
-                ProcessStaticFrame(_imagedata.ImageFromFile, true);
-                ProcessStaticFrame(_imagedata.ImageFromFile, false);
+                pictureBox3.Refresh(); pictureBox2.Refresh();
+                //ProcessStaticFrame(_imagedata.ImageFromFile, true);
+                //ProcessStaticFrame(_imagedata.ImageFromFile, false);
             }
 
         }
@@ -943,7 +980,7 @@ namespace LaserBeamMeasurement
             dataGridView1[2, 2].Value = Convert.ToString(((_beamparameters.sizex_med_filter * pixsize / 1000) / _imagedata.wavelength[listBox1.SelectedIndex]) * 180 / Math.PI);
             dataGridView1[3, 2].Value = Convert.ToString(((_beamparameters.sizey_med_filter * pixsize / 1000) / _imagedata.wavelength[listBox1.SelectedIndex]) * 180 / Math.PI);
 
-
+            dataGridView1.Refresh();
         }
 
         private void button2_Click_1(object sender, EventArgs e)
