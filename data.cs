@@ -102,15 +102,15 @@ namespace LaserBeamMeasurement
                 if (x0 < 0) x0 = 0;
                 if (y0 < 0) y0 = 0;
 
-                if (x0 >= gf.Bitmap.Size.Width) x0 = gf.Bitmap.Size.Width - 1;
-                if (y0 >= gf.Bitmap.Size.Height) y0 = gf.Bitmap.Size.Height - 1;
+                if (x0 >= gf.Width) x0 = gf.Width - 1;
+                if (y0 >= gf.Height) y0 = gf.Height - 1;
 
                 if (yx)
 
-                    ChartX[index] = gf.Bitmap.GetPixel(x0, y0).R;
+                    ChartX[index] = gf.Data[x0, y0, 0];
 
                 else
-                    ChartY[index] = gf.Bitmap.GetPixel(x0, y0).R;
+                    ChartY[index] = gf.Data[x0, y0, 0];
 
 
 
@@ -132,15 +132,15 @@ namespace LaserBeamMeasurement
                     if (x <= 0) x = 0;
                     if (y <= 0) y = 0;
 
-                    if (x >= gf.Bitmap.Size.Width) x = gf.Bitmap.Size.Width - 1;
-                    if (y >= gf.Bitmap.Size.Height) y = gf.Bitmap.Size.Height - 1;
+                    if (x >= gf.Width) x = gf.Width - 1;
+                    if (y >= gf.Height) y = gf.Height - 1;
 
                     if (yx)
 
-                        ChartX[index] = gf.Bitmap.GetPixel(x, y).R;
+                        ChartX[index] = gf.Data[y, x, 0];
 
                     else
-                        ChartY[index] = gf.Bitmap.GetPixel(x, y).R;
+                        ChartY[index] = gf.Data[y, x, 0];
                     index++;
                     x += sx;
                 }
@@ -154,16 +154,16 @@ namespace LaserBeamMeasurement
                 if (x0 < 0) x0 = 0;
                 if (y0 < 0) y0 = 0;
 
-                if (x0 >= gf.Bitmap.Size.Width) x0 = gf.Bitmap.Size.Width - 1;
-                if (y0 >= gf.Bitmap.Size.Height) y0 = gf.Bitmap.Size.Height - 1;
+                if (x0 >= gf.Width) x0 = gf.Width - 1;
+                if (y0 >= gf.Height) y0 = gf.Height - 1;
 
                 if (yx)
                 {
-                    ChartX[index] = gf.Bitmap.GetPixel(x0, y0).R;
+                    ChartX[index] = gf.Data[y0, x0, 0];
 
                 }
                 else
-                    ChartY[index] = gf.Bitmap.GetPixel(x0, y0).R;
+                    ChartY[index] = gf.Data[y0, x0, 0];
 
                 index++;
                 int x = x0;
@@ -181,16 +181,16 @@ namespace LaserBeamMeasurement
                     if (x <= 0) x = 0;
                     if (y <= 0) y = 0;
 
-                    if (x >= gf.Bitmap.Size.Width) x = gf.Bitmap.Size.Width - 1;
-                    if (y >= gf.Bitmap.Size.Height) y = gf.Bitmap.Size.Height - 1;
+                    if (x >= gf.Width) x = gf.Width - 1;
+                    if (y >= gf.Height) y = gf.Height - 1;
 
                     if (yx)
                     {
-                        ChartX[index] = gf.Bitmap.GetPixel(x, y).R;
+                        ChartX[index] = gf.Data[y, x, 0];
 
                     }
                     else
-                        ChartY[index] = gf.Bitmap.GetPixel(x, y).R;
+                        ChartY[index] = gf.Data[y, x, 0];
                     index++;
                     y += sy;
                 }
@@ -258,7 +258,7 @@ namespace LaserBeamMeasurement
             for (int i = centerx - 150; i < centerx + 150; i++)
                 for (int j = centery - 150; j < centery + 150; j++)
                 {
-                    pix = gf.Bitmap.GetPixel(i, j).R;
+                    pix = gf.Data[j, i, 0];
                     sum += pix;
                     muli += pix * i;
                     mulj += pix * j;

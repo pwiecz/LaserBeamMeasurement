@@ -3,12 +3,11 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
-
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Excel = Microsoft.Office.Interop.Excel;
-
+using System.Runtime.InteropServices;
 
 namespace LaserBeamMeasurement
 {
@@ -78,6 +77,20 @@ namespace LaserBeamMeasurement
             }
         }
 
+        private static dynamic CreateElement(DepthType depthType)
+        {
+            switch (depthType)
+            {
+                case DepthType.Cv8S: return new sbyte[1];
+                case DepthType.Cv8U: return new byte[1];
+                case DepthType.Cv16S: return new short[1];
+                case DepthType.Cv16U: return new ushort[1];
+                case DepthType.Cv32S: return new int[1];
+                case DepthType.Cv32F: return new float[1];
+                case DepthType.Cv64F: return new double[1];
+            }
+            return new float[1];
+        }
         public void ProcessFrame(object sender, EventArgs arg) // will be simplified
         {
 
@@ -104,29 +117,29 @@ namespace LaserBeamMeasurement
             Invoke((MethodInvoker)(
                 () =>
                 {
-                pictureBox4.Image = OrgImage1;
-                pictureBox4.Refresh();
-                _imagedata.MakeFalse((Bitmap)OrgImage);
-                pictureBox1.Image = OrgImage;
-                pictureBox1.Refresh();
-                double[] minVal;
-                double[] maxVal;
-                System.Drawing.Point[] minLoc;
-                System.Drawing.Point[] maxLoc;
-                grayFrame.MinMax(out minVal, out maxVal, out minLoc, out maxLoc);
-                _imagedata.sizex = OrgImage.Width;
-                _imagedata.sizey = OrgImage.Height;
+                    pictureBox4.Image = OrgImage1;
+                    pictureBox4.Refresh();
+                    _imagedata.MakeFalse((Bitmap)OrgImage);
+                    pictureBox1.Image = OrgImage;
+                    pictureBox1.Refresh();
+                    double[] minVal;
+                    double[] maxVal;
+                    System.Drawing.Point[] minLoc;
+                    System.Drawing.Point[] maxLoc;
+                    grayFrame.MinMax(out minVal, out maxVal, out minLoc, out maxLoc);
+                    _imagedata.sizex = OrgImage.Width;
+                    _imagedata.sizey = OrgImage.Height;
 
-                if (hand_mode)
-                {
-                    _imagedata.centerx = mouse_x;
-                    _imagedata.centery = mouse_y;
-                }
-                else
-                {
-                    _imagedata.centerx = maxLoc[0].X;
-                    _imagedata.centery = maxLoc[0].Y;
-                }
+                    if (hand_mode)
+                    {
+                        _imagedata.centerx = mouse_x;
+                        _imagedata.centery = mouse_y;
+                    }
+                    else
+                    {
+                        _imagedata.centerx = maxLoc[0].X;
+                        _imagedata.centery = maxLoc[0].Y;
+                    }
 
                     pictureBox1.Refresh();
                     pictureBox4.Refresh();
@@ -140,8 +153,10 @@ namespace LaserBeamMeasurement
                     // thresh calculate
                     if (hand_mode)
                     {
-                        thresh_med = grayFrame.Bitmap.GetPixel(_imagedata.centerx, _imagedata.centery).R / 2;
-                        thresh_e2 = grayFrame.Bitmap.GetPixel(_imagedata.centerx, _imagedata.centery).R / Math.Exp(2);
+                        var value = CreateElement(grayFrame.Depth);
+                        Marshal.Copy(grayFrame.GetDataPointer(new int[] { _imagedata.centerx, _imagedata.centery }), value, 0, 1);
+                        thresh_med = value[0] / 2;
+                        thresh_e2 = value[0] / Math.Exp(2);
                     }
                     else
                     {
@@ -168,9 +183,6 @@ namespace LaserBeamMeasurement
 
                     _beamparameters.BeamSizeDetect(thresh_med, thresh_e2, _imagedata);
                 }));
-
-
-
         }
 
         public void ProcessStaticFrame(Image ImFromFile, bool filt)
@@ -181,8 +193,8 @@ namespace LaserBeamMeasurement
             Bitmap masterImage = (Bitmap)ImFromFile;
 
             // Normalizing it to grayscale
-            Image<Gray, Byte> grayFrame = new Image<Gray, Byte>(masterImage);
-            Image<Gray, Byte> grayFramefilt = new Image<Gray, Byte>(masterImage);
+            Image<Gray, Byte> grayFrame = masterImage.ToImage<Gray, Byte>();//new Image<Gray, Byte>(masterImage);
+            Image<Gray, Byte> grayFramefilt = masterImage.ToImage<Gray, Byte>();//new Image<Gray, Byte>(masterImage);
 
             double[] minVal;
             double[] maxVal;
@@ -232,7 +244,7 @@ namespace LaserBeamMeasurement
                     if (grayFrameX >= 0 && grayFrameX < grayFrame.Data.GetLength(0) &&
                         grayFrameY >= 0 && grayFrameY < grayFrame.Data.GetLength(1))
                     {
-                        _imagedata.Graph3d[k, m] = grayFrame.Data[grayFrameX, grayFrameY, 0];   //grayFrame.Bitmap.GetPixel(i, j).R;
+                        _imagedata.Graph3d[k, m] = grayFrame.Data[grayFrameX, grayFrameY, 0];
                     }
                     m++;
                 }
@@ -249,7 +261,7 @@ namespace LaserBeamMeasurement
                 for (int j = _imagedata.centery - height; j < _imagedata.centery + height; j++)
 
                 {
-                    _imagedata.Graph3d[k, m] = grayFrame.Data[j, i, 0];   //grayFrame.Bitmap.GetPixel(i, j).R;
+                    _imagedata.Graph3d[k, m] = grayFrame.Data[j, i, 0];
                     m++;
                 }
 
@@ -269,8 +281,8 @@ namespace LaserBeamMeasurement
             // thresh calculate
             if (hand_mode)
             {
-                thresh_med = (grayFrame.Bitmap.GetPixel(_imagedata.centerx, _imagedata.centery).R - _imagedata.zero_level) / 2 + _imagedata.zero_level;
-                thresh_e2 = (grayFrame.Bitmap.GetPixel(_imagedata.centerx, _imagedata.centery).R - _imagedata.zero_level) / Math.Exp(2) + _imagedata.zero_level;
+                thresh_med = (grayFrame.Data[_imagedata.centerx, _imagedata.centery, 0] - _imagedata.zero_level) / 2 + _imagedata.zero_level;
+                thresh_e2 = (grayFrame.Data[_imagedata.centerx, _imagedata.centery, 0] - _imagedata.zero_level) / Math.Exp(2) + _imagedata.zero_level;
             }
             else
             {
@@ -598,7 +610,7 @@ namespace LaserBeamMeasurement
                 _imagedata.zero_level = Convert.ToInt16(textBox2.Text);
                 ProcessStaticFrame(_imagedata.ImageFromFile, true);
                 ProcessStaticFrame(_imagedata.ImageFromFile, false);
-                
+
                 pictureBox3.Refresh(); pictureBox2.Refresh();
                 //ProcessStaticFrame(_imagedata.ImageFromFile, true);
                 //ProcessStaticFrame(_imagedata.ImageFromFile, false);
@@ -1056,8 +1068,8 @@ namespace LaserBeamMeasurement
         }
     }
 
-   
-    }
+
+}
 
 
 
