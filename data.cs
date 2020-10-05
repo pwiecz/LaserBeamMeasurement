@@ -107,10 +107,10 @@ namespace LaserBeamMeasurement
 
                 if (yx)
 
-                    ChartX[index] = gf.Data[x0, y0, 0];
+                    ChartX[index] = gf.Data[y0, x0, 0];
 
                 else
-                    ChartY[index] = gf.Data[x0, y0, 0];
+                    ChartY[index] = gf.Data[y0, x0, 0];
 
 
 
