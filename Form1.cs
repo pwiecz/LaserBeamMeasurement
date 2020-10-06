@@ -1,6 +1,4 @@
-﻿
-
-using System;
+﻿using System;
 using System.Drawing;
 using System.Windows.Forms;
 using Emgu.CV;
@@ -11,8 +9,6 @@ using System.Runtime.InteropServices;
 
 namespace LaserBeamMeasurement
 {
-
-
     public partial class Form1 : Form
     {
 
@@ -28,7 +24,7 @@ namespace LaserBeamMeasurement
         ImageData _imagedata = new ImageData();
         BeamParameters _beamparameters = new BeamParameters();
 
-        private VideoCapture _capture = null;
+        private ICamera _camera = null;
 
         private bool _captureInProgress;
         private Excel.Application excelapp;
@@ -37,6 +33,16 @@ namespace LaserBeamMeasurement
         private Excel.Sheets excelsheets;
         private Excel.Worksheet excelworksheet;
         private Excel.Range excelcells;
+
+        static ICamera CreateCamera()
+        {
+            UEyeCamera uEyeCamera = new UEyeCamera();
+            if (uEyeCamera.Init())
+            {
+                return uEyeCamera;
+            }
+            return new VideoCaptureCamera();
+        }
 
         public Form1()
         {
@@ -62,18 +68,10 @@ namespace LaserBeamMeasurement
 
             CvInvoke.UseOpenCL = false;
 
-            try
+            _camera = CreateCamera();
+            if (_camera != null)
             {
-                _capture = new VideoCapture();
-                _capture.SetCaptureProperty(CapProp.FrameWidth, 1920);
-                _capture.SetCaptureProperty(CapProp.FrameHeight, 1080);
-                _capture.ImageGrabbed += ProcessFrame;
-
-
-            }
-            catch (NullReferenceException excpt)
-            {
-                MessageBox.Show(excpt.Message);
+                _camera.OnNewFrame += ProcessFrame;
             }
         }
 
@@ -93,11 +91,7 @@ namespace LaserBeamMeasurement
         }
         public void ProcessFrame(object sender, EventArgs arg) // will be simplified
         {
-
-            //get frame from the Camera
-
-            Mat frame = new Mat();
-            Mat grayFrame = new Mat();
+            Mat grayFrame = _camera.GetGrayFrame();
 
             double thresh_med;
             double thresh_e2;
@@ -105,9 +99,6 @@ namespace LaserBeamMeasurement
             System.Drawing.Image OrgImage;
             System.Drawing.Image OrgImage1;
 
-            _capture.Retrieve(frame);
-
-            CvInvoke.CvtColor(frame, grayFrame, ColorConversion.Bgr2Gray);
             Image<Rgb, Byte> tothermo = grayFrame.ToImage<Rgb, Byte>(); // original
             Image<Gray, Byte> tothermo1 = grayFrame.ToImage<Gray, Byte>();
 
@@ -374,26 +365,23 @@ namespace LaserBeamMeasurement
 
         private void button1_Click(object sender, EventArgs e)
         {
-
-
-            if (_capture != null)
-            {
-                if (_captureInProgress)
-                {  //stop the capture
-                    button1.Text = "start";
-                    _capture.Pause();
-
-                }
-                else
+            if (_captureInProgress)
+            { //stop the capture
+                button1.Text = "start";
+                if (_camera != null)
                 {
-                    //start the capture
-                    button1.Text = "stop";
-                    _capture.Start();
-
+                    _camera.Stop();
                 }
-
-                _captureInProgress = !_captureInProgress;
             }
+            else
+            {
+                button1.Text = "stop";
+                if (_camera != null)
+                {
+                    _camera.Start();
+                }
+            }
+            _captureInProgress = !_captureInProgress;
         }
 
         public void Mess()
@@ -705,14 +693,14 @@ namespace LaserBeamMeasurement
 
             else
             {
-
-
-
                 if (_captureInProgress)
                 {
                     button1.Text = "start";
-                    _capture.Pause();
-                    _captureInProgress = !_captureInProgress;
+                    if (_camera != null)
+                    {
+                        _camera.Stop();
+                        _captureInProgress = !_captureInProgress;
+                    }
                     no_image = false;
 
                 }
