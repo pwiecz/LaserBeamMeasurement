@@ -1,11 +1,11 @@
-﻿using System;
-using System.Drawing;
-using System.Windows.Forms;
-using Emgu.CV;
+﻿using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
-using Excel = Microsoft.Office.Interop.Excel;
+using System;
+using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Windows.Forms;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace LaserBeamMeasurement
 {
@@ -59,12 +59,12 @@ namespace LaserBeamMeasurement
             dataGridView1.Rows.Add();
             dataGridView1.Rows[2].HeaderCell.Value = "DIV";
 
-            chart1.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
-            chart2.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
-            chart3.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
-            chart4.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
+            xWidthChart.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
+            yWidthChart.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
+            xWidthFilteredChart.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
+            yWidthFilteredChart.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
 
-            tabControl1.SelectedIndex = 1;
+            tabControl1.SelectedIndex = 0;
 
             CvInvoke.UseOpenCL = false;
 
@@ -108,11 +108,11 @@ namespace LaserBeamMeasurement
             Invoke((MethodInvoker)(
                 () =>
                 {
-                    pictureBox4.Image = OrgImage1;
-                    pictureBox4.Refresh();
+                    dynamicGrayPictureBox.Image = OrgImage1;
+                    dynamicGrayPictureBox.Refresh();
                     _imagedata.MakeFalse((Bitmap)OrgImage);
-                    pictureBox1.Image = OrgImage;
-                    pictureBox1.Refresh();
+                    dynamicThermoPictureBox.Image = OrgImage;
+                    dynamicThermoPictureBox.Refresh();
                     double[] minVal;
                     double[] maxVal;
                     System.Drawing.Point[] minLoc;
@@ -132,8 +132,8 @@ namespace LaserBeamMeasurement
                         _imagedata.centery = maxLoc[0].Y;
                     }
 
-                    pictureBox1.Refresh();
-                    pictureBox4.Refresh();
+                    dynamicThermoPictureBox.Refresh();
+                    dynamicGrayPictureBox.Refresh();
 
                     //_imagedata.GraphFill(tothermo1);
                     _imagedata.GraphFillRotate(tothermo1, _imagedata.ChartXstartX, _imagedata.ChartXstartY, _imagedata.ChartXstopX, _imagedata.ChartXstopY, true);
@@ -210,17 +210,13 @@ namespace LaserBeamMeasurement
                 _imagedata.centery = maxLoc[0].Y;
             }
 
-
-
             // fill 3D plot data
-
-
             int width = 200;
             int height = 200;
 
             int k = 0;
             int m = 0;
-            double rotation_angle = (int)numericUpDown1.Value * Math.PI / 180;
+            double rotation_angle = (int)angleNumericUpDown.Value * Math.PI / 180;
 
             double rotation_sin = Math.Sin(rotation_angle);
             double rotation_cos = Math.Cos(rotation_angle);
@@ -228,22 +224,18 @@ namespace LaserBeamMeasurement
             for (int i = -width; i < width; i++)
             {
                 for (int j = -height; j < height; j++)
-
                 {
                     int grayFrameX = (int)(i * rotation_sin + j * rotation_cos) + _imagedata.centery;
                     int grayFrameY = (int)(i * rotation_cos - j * rotation_sin) + _imagedata.centerx;
-                    if (grayFrameX >= 0 && grayFrameX < grayFrame.Data.GetLength(0) &&
-                        grayFrameY >= 0 && grayFrameY < grayFrame.Data.GetLength(1))
+                    if (grayFrameX >= 0 && grayFrameX < grayFrame.Data.GetLength(1) &&
+                        grayFrameY >= 0 && grayFrameY < grayFrame.Data.GetLength(0))
                     {
-                        _imagedata.Graph3d[k, m] = grayFrame.Data[grayFrameX, grayFrameY, 0];
+                        _imagedata.Graph3d[k, m] = grayFrame.Data[grayFrameY, grayFrameX, 0];
                     }
                     m++;
                 }
-
                 k++; m = 0;
-
             }
-
 
             /*
 
@@ -260,20 +252,16 @@ namespace LaserBeamMeasurement
 
             } */
 
-
-
             _imagedata.GraphFillRotate(grayFrame, _imagedata.ChartXstartX, _imagedata.ChartXstartY, _imagedata.ChartXstopX, _imagedata.ChartXstopY, true);
             _imagedata.GraphFillRotate(grayFrame, _imagedata.ChartYstartX, _imagedata.ChartYstartY, _imagedata.ChartYstopX, _imagedata.ChartYstopY, false);
 
-
-            _imagedata.zero_level = Convert.ToInt32(textBox2.Text);
-
+            _imagedata.zero_level = Convert.ToInt32(zeroLevelTextBox.Text);
 
             // thresh calculate
             if (hand_mode)
             {
-                thresh_med = (grayFrame.Data[_imagedata.centerx, _imagedata.centery, 0] - _imagedata.zero_level) / 2 + _imagedata.zero_level;
-                thresh_e2 = (grayFrame.Data[_imagedata.centerx, _imagedata.centery, 0] - _imagedata.zero_level) / Math.Exp(2) + _imagedata.zero_level;
+                thresh_med = (grayFrame.Data[_imagedata.centery, _imagedata.centerx, 0] - _imagedata.zero_level) / 2 + _imagedata.zero_level;
+                thresh_e2 = (grayFrame.Data[_imagedata.centery, _imagedata.centerx, 0] - _imagedata.zero_level) / Math.Exp(2) + _imagedata.zero_level;
             }
             else
             {
@@ -306,7 +294,6 @@ namespace LaserBeamMeasurement
 
             }
 
-
             if (filt)
             {
                 _beamparameters.sizex_med_filter = _beamparameters.sizex_med;
@@ -322,14 +309,14 @@ namespace LaserBeamMeasurement
                 dataGridView1[7, 0].Value = Convert.ToString(_beamparameters.boundRect_med.Height * pixsize);
                 dataGridView1[6, 1].Value = Convert.ToString(_beamparameters.boundRect_e2.Width * pixsize);
                 dataGridView1[7, 1].Value = Convert.ToString(_beamparameters.boundRect_e2.Height * pixsize);
-                chart3.Series["x filter"].Points.DataBindY(_imagedata.ChartX);
-                chart4.Series["y filter"].Points.DataBindY(_imagedata.ChartY);
-                chart3.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
-                chart3.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
-                chart4.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
-                chart4.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
-                chart3.Series["zero"].Points.DataBindY(_imagedata.zero);
-                chart4.Series["zero"].Points.DataBindY(_imagedata.zero);
+                xWidthFilteredChart.Series["x filter"].Points.DataBindY(_imagedata.ChartX);
+                yWidthFilteredChart.Series["y filter"].Points.DataBindY(_imagedata.ChartY);
+                xWidthFilteredChart.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
+                xWidthFilteredChart.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
+                yWidthFilteredChart.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
+                yWidthFilteredChart.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
+                xWidthFilteredChart.Series["zero"].Points.DataBindY(_imagedata.zero);
+                yWidthFilteredChart.Series["zero"].Points.DataBindY(_imagedata.zero);
 
                 for (int i = 0; i < 2004; i++)
                 {
@@ -342,14 +329,14 @@ namespace LaserBeamMeasurement
                 label1.Text = "FWHM:  " + Convert.ToString(_beamparameters.sizex_med * pixsize) + " um           1/e^2:  " + Convert.ToString(_beamparameters.sizex_e2 * pixsize) + " um";
                 label2.Text = "FWHM:  " + Convert.ToString(_beamparameters.sizey_med * pixsize) + " um           1/e^2:  " + Convert.ToString(_beamparameters.sizey_e2 * pixsize) + " um";
 
-                chart1.Series["x"].Points.DataBindY(_imagedata.ChartX);
-                chart2.Series["y"].Points.DataBindY(_imagedata.ChartY);
-                chart1.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
-                chart1.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
-                chart2.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
-                chart2.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
-                chart1.Series["zero"].Points.DataBindY(_imagedata.zero);
-                chart2.Series["zero"].Points.DataBindY(_imagedata.zero);
+                xWidthChart.Series["x"].Points.DataBindY(_imagedata.ChartX);
+                yWidthChart.Series["y"].Points.DataBindY(_imagedata.ChartY);
+                xWidthChart.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
+                xWidthChart.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
+                yWidthChart.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
+                yWidthChart.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
+                xWidthChart.Series["zero"].Points.DataBindY(_imagedata.zero);
+                yWidthChart.Series["zero"].Points.DataBindY(_imagedata.zero);
 
                 dataGridView1[0, 0].Value = Convert.ToString(_beamparameters.sizex_med * pixsize);
                 dataGridView1[1, 0].Value = Convert.ToString(_beamparameters.sizey_med * pixsize);
@@ -363,11 +350,12 @@ namespace LaserBeamMeasurement
             dataGridView1.Refresh();
         }
 
-        private void button1_Click(object sender, EventArgs e)
+
+        private void startButton_Click(object sender, EventArgs e)
         {
             if (_captureInProgress)
             { //stop the capture
-                button1.Text = "start";
+                startButton.Text = "start";
                 if (_camera != null)
                 {
                     _camera.Stop();
@@ -375,7 +363,7 @@ namespace LaserBeamMeasurement
             }
             else
             {
-                button1.Text = "stop";
+                startButton.Text = "stop";
                 if (_camera != null)
                 {
                     _camera.Start();
@@ -388,13 +376,14 @@ namespace LaserBeamMeasurement
         { MessageBox.Show("please, load image"); }
 
 
-        private void pictureBox1_MouseClick(object sender, MouseEventArgs e)
+        private void dynamicThermoPictureBox_MouseClick(object sender, MouseEventArgs e)
         {
             mouse_x = e.X;
             mouse_y = e.Y;
         }
 
-        private void pictureBox1_Paint(object sender, PaintEventArgs e)
+
+        private void dynamicThermoPictureBox_Paint(object sender, PaintEventArgs e)
         {
 
             label3.Text = "FWHM:  " + Convert.ToString(_beamparameters.sizex_med * pixsize) + " um           1/e^2:  " + Convert.ToString(_beamparameters.sizex_e2 * pixsize) + " um";
@@ -407,54 +396,50 @@ namespace LaserBeamMeasurement
             dataGridView1[7, 0].Value = Convert.ToString(_beamparameters.boundRect_med.Height * pixsize);
             dataGridView1[6, 1].Value = Convert.ToString(_beamparameters.boundRect_e2.Width * pixsize);
             dataGridView1[7, 1].Value = Convert.ToString(_beamparameters.boundRect_e2.Height * pixsize);
-            chart3.Series["x filter"].Points.DataBindY(_imagedata.ChartX);
-            chart4.Series["y filter"].Points.DataBindY(_imagedata.ChartY);
-            chart3.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
-            chart3.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
-            chart4.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
-            chart4.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
-            chart3.Series["zero"].Points.DataBindY(_imagedata.zero);
-            chart4.Series["zero"].Points.DataBindY(_imagedata.zero);
+            xWidthFilteredChart.Series["x filter"].Points.DataBindY(_imagedata.ChartX);
+            yWidthFilteredChart.Series["y filter"].Points.DataBindY(_imagedata.ChartY);
+            xWidthFilteredChart.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
+            xWidthFilteredChart.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
+            yWidthFilteredChart.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
+            yWidthFilteredChart.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
+            xWidthFilteredChart.Series["zero"].Points.DataBindY(_imagedata.zero);
+            yWidthFilteredChart.Series["zero"].Points.DataBindY(_imagedata.zero);
 
             label1.Text = "FWHM:  " + Convert.ToString(_beamparameters.sizex_med * pixsize) + " um           1/e^2:  " + Convert.ToString(_beamparameters.sizex_e2 * pixsize) + " um";
             label2.Text = "FWHM:  " + Convert.ToString(_beamparameters.sizey_med * pixsize) + " um           1/e^2:  " + Convert.ToString(_beamparameters.sizey_e2 * pixsize) + " um";
 
-            chart1.Series["x"].Points.DataBindY(_imagedata.ChartX);
-            chart2.Series["y"].Points.DataBindY(_imagedata.ChartY);
-            chart1.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
-            chart1.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
-            chart2.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
-            chart2.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
-            chart1.Series["zero"].Points.DataBindY(_imagedata.zero);
-            chart2.Series["zero"].Points.DataBindY(_imagedata.zero);
+            xWidthChart.Series["x"].Points.DataBindY(_imagedata.ChartX);
+            yWidthChart.Series["y"].Points.DataBindY(_imagedata.ChartY);
+            xWidthChart.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
+            xWidthChart.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
+            yWidthChart.Series["fwhm"].Points.DataBindY(_imagedata.TreshMedX);
+            yWidthChart.Series["1/e^2"].Points.DataBindY(_imagedata.TreshE2X);
+            xWidthChart.Series["zero"].Points.DataBindY(_imagedata.zero);
+            yWidthChart.Series["zero"].Points.DataBindY(_imagedata.zero);
 
-            chart1.Update();
-            chart2.Update();
-            chart3.Update();
-            chart4.Update();
-
+            xWidthChart.Update();
+            yWidthChart.Update();
+            xWidthFilteredChart.Update();
+            yWidthFilteredChart.Update();
 
             dataGridView1[0, 0].Value = Convert.ToString(_beamparameters.sizex_med * pixsize);
             dataGridView1[1, 0].Value = Convert.ToString(_beamparameters.sizey_med * pixsize);
             dataGridView1[0, 1].Value = Convert.ToString(_beamparameters.sizex_e2 * pixsize);
             dataGridView1[1, 1].Value = Convert.ToString(_beamparameters.sizey_e2 * pixsize);
 
-
             dataGridView1.Refresh();
 
             Graphics gr = e.Graphics;
             drawmark(gr, Color.Red);
-
         }
 
-
-        private void checkBox1_CheckStateChanged(object sender, EventArgs e)
+        private void manualModeCheckBox_CheckStateChanged(object sender, EventArgs e)
         {
             if (hand_mode) hand_mode = false;
             else hand_mode = true;
         }
 
-        private void toolStripButton1_Click(object sender, EventArgs e)
+        private void loadImage_Click(object sender, EventArgs e)
         {
             if (tabControl1.SelectedIndex == 0) return;
 
@@ -463,11 +448,11 @@ namespace LaserBeamMeasurement
             if (openFileDialog1.ShowDialog() == DialogResult.OK)
             {
                 Image t = Image.FromFile(openFileDialog1.FileName);
-                pictureBox2.Image = t;
+                staticGrayPictureBox.Image = t;
 
                 Image tf = (Image)t.Clone();
                 _imagedata.MakeFalse((Bitmap)tf);
-                pictureBox3.Image = tf;
+                staticThermoPictureBox.Image = tf;
 
                 _imagedata.ImageFromFile = t;
 
@@ -476,9 +461,9 @@ namespace LaserBeamMeasurement
                 ProcessStaticFrame(t, true);
                 ProcessStaticFrame(t, false);
 
-                pictureBox4.Refresh();
-                pictureBox3.Refresh();
-                pictureBox2.Refresh();
+                dynamicGrayPictureBox.Refresh();
+                staticThermoPictureBox.Refresh();
+                staticGrayPictureBox.Refresh();
 
                 /*ProcessStaticFrame(t, true);
                 ProcessStaticFrame(t, false);
@@ -491,16 +476,9 @@ namespace LaserBeamMeasurement
             }
         }
 
-        private void tabPage2_Click(object sender, EventArgs e)
+
+        private void dynamicGrayPictureBox_Paint(object sender, PaintEventArgs e)
         {
-
-        }
-
-
-        private void pictureBox4_Paint(object sender, PaintEventArgs e)
-        {
-
-
             Graphics gr = e.Graphics;
             drawmark(gr, Color.Red);
             Pen rect = new Pen(Color.White);
@@ -508,7 +486,8 @@ namespace LaserBeamMeasurement
             //e.Graphics.DrawRectangle(rect, _imagedata.graphstartx, _imagedata.graphstarty, _imagedata.spotsize<<1, _imagedata.spotsize<<1);
         }
 
-        private void pictureBox2_Paint(object sender, PaintEventArgs e)
+
+        private void staticGrayPictureBox_Paint(object sender, PaintEventArgs e)
         {
             Graphics gr = e.Graphics;
             drawmark(gr, Color.Red);
@@ -518,7 +497,7 @@ namespace LaserBeamMeasurement
             //e.Graphics.DrawRectangle(rect, _imagedata.graphstartx, _imagedata.graphstarty, _imagedata.spotsize<<1, _imagedata.spotsize<<1);
         }
 
-        private void pictureBox2_MouseClick(object sender, MouseEventArgs e)
+        private void staticGrayPictureBox_MouseClick(object sender, MouseEventArgs e)
         {
             if (no_image) { Mess(); return; }
 
@@ -526,13 +505,13 @@ namespace LaserBeamMeasurement
             mouse_y = e.Y;
             ProcessStaticFrame(_imagedata.ImageFromFile, true);
             ProcessStaticFrame(_imagedata.ImageFromFile, false);
-            pictureBox2.Refresh(); pictureBox3.Refresh();
+            staticGrayPictureBox.Refresh(); staticThermoPictureBox.Refresh();
             //ProcessStaticFrame(_imagedata.ImageFromFile, true);
             //ProcessStaticFrame(_imagedata.ImageFromFile, false);
 
         }
 
-        private void pictureBox3_MouseClick(object sender, MouseEventArgs e)
+        private void staticThermoPictureBox_MouseClick(object sender, MouseEventArgs e)
         {
             if (no_image) { Mess(); return; }
 
@@ -540,47 +519,50 @@ namespace LaserBeamMeasurement
             mouse_y = e.Y;
             ProcessStaticFrame(_imagedata.ImageFromFile, true);
             ProcessStaticFrame(_imagedata.ImageFromFile, false);
-            pictureBox3.Refresh(); pictureBox2.Refresh();
+            staticThermoPictureBox.Refresh(); staticGrayPictureBox.Refresh();
             //ProcessStaticFrame(_imagedata.ImageFromFile, true);
             //ProcessStaticFrame(_imagedata.ImageFromFile, false);
         }
 
-        private void pictureBox3_Paint(object sender, PaintEventArgs e)
+        private void staticThermoPictureBox_Paint(object sender, PaintEventArgs e)
         {
             Graphics gr = e.Graphics;
             drawmark(gr, Color.White);
         }
 
-        private void pictureBox2_Click(object sender, EventArgs e)
+
+        private void staticGrayPictureBox_Click(object sender, EventArgs e)
         {
             if (no_image) { Mess(); return; }
 
-            pictureBox2.SizeMode = PictureBoxSizeMode.AutoSize;
+            staticGrayPictureBox.SizeMode = PictureBoxSizeMode.AutoSize;
+            staticThermoPictureBox.SizeMode = PictureBoxSizeMode.AutoSize;
         }
 
-        private void pictureBox3_Click(object sender, EventArgs e)
+        private void staticThermoPictureBox_Click(object sender, EventArgs e)
         {
             if (no_image) { Mess(); return; }
 
-            pictureBox3.SizeMode = PictureBoxSizeMode.AutoSize;
+            staticThermoPictureBox.SizeMode = PictureBoxSizeMode.AutoSize;
+            staticGrayPictureBox.SizeMode = PictureBoxSizeMode.AutoSize;
         }
 
-        private void textBox1_TextChanged(object sender, EventArgs e)
+        private void pixelPitchTextBox_TextChanged(object sender, EventArgs e)
         {
             if (no_image) { Mess(); return; }
 
-            if (textBox1.Text != "")
+            if (pixelPitchTextBox.Text != "")
             {
-                pixsize = Convert.ToDouble(textBox1.Text);
+                pixsize = Convert.ToDouble(pixelPitchTextBox.Text);
                 ProcessStaticFrame(_imagedata.ImageFromFile, true);
                 ProcessStaticFrame(_imagedata.ImageFromFile, false);
                 //ProcessStaticFrame(_imagedata.ImageFromFile, true);
                 //ProcessStaticFrame(_imagedata.ImageFromFile, false);
-                pictureBox3.Refresh(); pictureBox2.Refresh();
+                staticThermoPictureBox.Refresh(); staticGrayPictureBox.Refresh();
             }
         }
 
-        private void textBox1_KeyPress(object sender, KeyPressEventArgs e)
+        private void pixelPitchTextBox_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (no_image) { Mess(); return; }
 
@@ -589,23 +571,23 @@ namespace LaserBeamMeasurement
             e.Handled = true;
         }
 
-        private void textBox2_TextChanged(object sender, EventArgs e)
+        private void zeroLevelTextBox_TextChanged(object sender, EventArgs e)
         {
             if (no_image) { Mess(); return; }
 
-            if (textBox2.Text != "")
+            if (zeroLevelTextBox.Text != "")
             {
-                _imagedata.zero_level = Convert.ToInt16(textBox2.Text);
+                _imagedata.zero_level = Convert.ToInt16(zeroLevelTextBox.Text);
                 ProcessStaticFrame(_imagedata.ImageFromFile, true);
                 ProcessStaticFrame(_imagedata.ImageFromFile, false);
 
-                pictureBox3.Refresh(); pictureBox2.Refresh();
+                staticThermoPictureBox.Refresh(); staticGrayPictureBox.Refresh();
                 //ProcessStaticFrame(_imagedata.ImageFromFile, true);
                 //ProcessStaticFrame(_imagedata.ImageFromFile, false);
             }
         }
 
-        private void textBox2_KeyPress(object sender, KeyPressEventArgs e)
+        private void zeroLevelTextBox_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (no_image) { Mess(); return; }
 
@@ -613,18 +595,7 @@ namespace LaserBeamMeasurement
             e.Handled = true;
         }
 
-        private void checkBox2_CheckedChanged(object sender, EventArgs e)
-        {
-            if (no_image) { Mess(); return; }
-
-            ProcessStaticFrame(_imagedata.ImageFromFile, true);
-            ProcessStaticFrame(_imagedata.ImageFromFile, false);
-            //ProcessStaticFrame(_imagedata.ImageFromFile, true);
-            //ProcessStaticFrame(_imagedata.ImageFromFile, false);
-            pictureBox3.Refresh(); pictureBox2.Refresh();
-        }
-
-        private void pictureBox4_MouseClick(object sender, MouseEventArgs e)
+        private void dynamicGrayPictureBox_MouseClick(object sender, MouseEventArgs e)
         {
             if (no_image) { Mess(); return; }
 
@@ -632,17 +603,12 @@ namespace LaserBeamMeasurement
             mouse_y = e.Y;
             ProcessStaticFrame(_imagedata.ImageFromFile, true);
             ProcessStaticFrame(_imagedata.ImageFromFile, false);
-            pictureBox2.Refresh(); pictureBox3.Refresh();
+            staticGrayPictureBox.Refresh(); staticThermoPictureBox.Refresh();
             //ProcessStaticFrame(_imagedata.ImageFromFile, true);
             //ProcessStaticFrame(_imagedata.ImageFromFile, false);
         }
 
-        private void textBox3_TextChanged(object sender, EventArgs e)
-        {
-
-        }
-
-        private void textBox3_KeyPress(object sender, KeyPressEventArgs e)
+        private void radiusTextBox_KeyPress(object sender, KeyPressEventArgs e)
         {
             if (no_image) { Mess(); return; }
 
@@ -650,22 +616,20 @@ namespace LaserBeamMeasurement
             {
                 if (e.KeyChar == (char)Keys.Enter)
                 {
-                    if (textBox3.Text != "")
+                    if (radiusTextBox.Text != "")
                     {
-                        _imagedata.spotsize = Convert.ToInt16(textBox3.Text);
+                        _imagedata.spotsize = Convert.ToInt16(radiusTextBox.Text);
                         if (_imagedata.spotsize > _imagedata.maxspotsize) _imagedata.spotsize = _imagedata.maxspotsize;
-                        chart1.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
-                        chart2.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
-                        chart3.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
-                        chart4.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
-
+                        xWidthChart.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
+                        yWidthChart.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
+                        xWidthFilteredChart.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
+                        yWidthFilteredChart.ChartAreas[0].AxisX.Maximum = _imagedata.spotsize + 4;
 
                         if (tabControl1.SelectedIndex == 1)
                         {
-
                             ProcessStaticFrame(_imagedata.ImageFromFile, true);
                             ProcessStaticFrame(_imagedata.ImageFromFile, false);
-                            pictureBox2.Refresh(); pictureBox3.Refresh();
+                            staticGrayPictureBox.Refresh(); staticThermoPictureBox.Refresh();
                             //ProcessStaticFrame(_imagedata.ImageFromFile, true);
                             //ProcessStaticFrame(_imagedata.ImageFromFile, false);
                         }
@@ -679,37 +643,28 @@ namespace LaserBeamMeasurement
         private void tabControl1_SelectedIndexChanged(object sender, EventArgs e)
         {
             if (tabControl1.SelectedIndex == 0)
-            {   // from static to dinamic
-                button1.Visible = true; groupBox1.Visible = false;
-
-
+            {   // from static to dynamic
+                startButton.Visible = true; groupBox1.Visible = false;
             }
-
-            else if (tabControl1.SelectedIndex == 2) // 3d mode
-            {
-
-
-            }
-
             else
             {
+                // from dynamic to static
                 if (_captureInProgress)
                 {
-                    button1.Text = "start";
+                    startButton.Text = "start";
                     if (_camera != null)
                     {
                         _camera.Stop();
                         _captureInProgress = !_captureInProgress;
                     }
                     no_image = false;
-
                 }
 
-                if (no_image) { button1.Visible = false; groupBox1.Visible = true; return; }
+                if (no_image) { startButton.Visible = false; groupBox1.Visible = true; return; }
 
-                pictureBox2.Image = pictureBox4.Image;
-                pictureBox3.Image = pictureBox1.Image;
-                _imagedata.ImageFromFile = pictureBox4.Image;
+                staticGrayPictureBox.Image = dynamicGrayPictureBox.Image;
+                staticThermoPictureBox.Image = dynamicThermoPictureBox.Image;
+                _imagedata.ImageFromFile = dynamicGrayPictureBox.Image;
 
                 mouse_x = (int)(_imagedata.ImageFromFile.Size.Width / 2);
                 mouse_y = (int)(_imagedata.ImageFromFile.Size.Height / 2);
@@ -717,17 +672,11 @@ namespace LaserBeamMeasurement
                 ProcessStaticFrame(_imagedata.ImageFromFile, true);
                 ProcessStaticFrame(_imagedata.ImageFromFile, false);
 
-                pictureBox2.Refresh();
-                pictureBox3.Refresh();
+                staticGrayPictureBox.Refresh();
+                staticThermoPictureBox.Refresh();
 
-
-                button1.Visible = false; groupBox1.Visible = true;
+                startButton.Visible = false; groupBox1.Visible = true;
             }
-        }
-
-        private void tabPage1_Click(object sender, EventArgs e)
-        {
-
         }
 
         private void drawmark(Graphics gr, Color cl)
@@ -739,20 +688,19 @@ namespace LaserBeamMeasurement
 
             int size = _imagedata.spotsize / 2;
 
-            _imagedata.ChartXstartX = _imagedata.centerx + Convert.ToInt32(size * Math.Cos(Convert.ToDouble(numericUpDown1.Value + 180) / 180 * Math.PI));
-            _imagedata.ChartXstartY = _imagedata.centery + Convert.ToInt32(size * Math.Sin(Convert.ToDouble(numericUpDown1.Value + 180) / 180 * Math.PI));
-            _imagedata.ChartXstopX = _imagedata.centerx + Convert.ToInt32(size * Math.Cos(Convert.ToDouble(numericUpDown1.Value) / 180 * Math.PI));
-            _imagedata.ChartXstopY = _imagedata.centery + Convert.ToInt32(size * Math.Sin(Convert.ToDouble(numericUpDown1.Value) / 180 * Math.PI));
-            _imagedata.ChartYstartX = _imagedata.centerx + Convert.ToInt32(size * Math.Cos(Convert.ToDouble(numericUpDown1.Value + 270) / 180 * Math.PI));
-            _imagedata.ChartYstartY = _imagedata.centery + Convert.ToInt32(size * Math.Sin(Convert.ToDouble(numericUpDown1.Value + 270) / 180 * Math.PI));
-            _imagedata.ChartYstopX = _imagedata.centerx + Convert.ToInt32(size * Math.Cos(Convert.ToDouble(numericUpDown1.Value + 90) / 180 * Math.PI));
-            _imagedata.ChartYstopY = _imagedata.centery + Convert.ToInt32(size * Math.Sin(Convert.ToDouble(numericUpDown1.Value + 90) / 180 * Math.PI));
+            _imagedata.ChartXstartX = _imagedata.centerx + Convert.ToInt32(size * Math.Cos(Convert.ToDouble(angleNumericUpDown.Value + 180) / 180 * Math.PI));
+            _imagedata.ChartXstartY = _imagedata.centery + Convert.ToInt32(size * Math.Sin(Convert.ToDouble(angleNumericUpDown.Value + 180) / 180 * Math.PI));
+            _imagedata.ChartXstopX = _imagedata.centerx + Convert.ToInt32(size * Math.Cos(Convert.ToDouble(angleNumericUpDown.Value) / 180 * Math.PI));
+            _imagedata.ChartXstopY = _imagedata.centery + Convert.ToInt32(size * Math.Sin(Convert.ToDouble(angleNumericUpDown.Value) / 180 * Math.PI));
+            _imagedata.ChartYstartX = _imagedata.centerx + Convert.ToInt32(size * Math.Cos(Convert.ToDouble(angleNumericUpDown.Value + 270) / 180 * Math.PI));
+            _imagedata.ChartYstartY = _imagedata.centery + Convert.ToInt32(size * Math.Sin(Convert.ToDouble(angleNumericUpDown.Value + 270) / 180 * Math.PI));
+            _imagedata.ChartYstopX = _imagedata.centerx + Convert.ToInt32(size * Math.Cos(Convert.ToDouble(angleNumericUpDown.Value + 90) / 180 * Math.PI));
+            _imagedata.ChartYstopY = _imagedata.centery + Convert.ToInt32(size * Math.Sin(Convert.ToDouble(angleNumericUpDown.Value + 90) / 180 * Math.PI));
 
             Point p1 = new Point(_imagedata.ChartXstartX, _imagedata.ChartXstartY);
             Point p2 = new Point(_imagedata.ChartXstopX, _imagedata.ChartXstopY);
             Point p3 = new Point(_imagedata.ChartYstartX, _imagedata.ChartYstartY);
             Point p4 = new Point(_imagedata.ChartYstopX, _imagedata.ChartYstopY);
-
 
             gr.DrawLine(axis, p1, p2);
             axis.Color = Color.Green;
@@ -763,35 +711,41 @@ namespace LaserBeamMeasurement
             gr.DrawRectangle(axis, _imagedata.boundRect_e2);
         }
 
-        private void numericUpDown1_ValueChanged(object sender, EventArgs e)
+
+        private void angleNumericUpDown_ValueChanged(object sender, EventArgs e)
         {
             if (no_image) { Mess(); return; }
 
-            if (numericUpDown1.Value == 360)
-                numericUpDown1.Value = 0;
-            if (numericUpDown1.Value == -1)
-                numericUpDown1.Value = 359;
+            if (angleNumericUpDown.Value == 360)
+                angleNumericUpDown.Value = 0;
+            if (angleNumericUpDown.Value == -1)
+                angleNumericUpDown.Value = 359;
 
             if (tabControl1.SelectedIndex == 1)
             {
+                // if static selected
                 ProcessStaticFrame(_imagedata.ImageFromFile, true);
                 ProcessStaticFrame(_imagedata.ImageFromFile, false);
-                pictureBox3.Refresh(); pictureBox2.Refresh();
+                staticThermoPictureBox.Refresh(); staticGrayPictureBox.Refresh();
                 //ProcessStaticFrame(_imagedata.ImageFromFile, true);
                 //ProcessStaticFrame(_imagedata.ImageFromFile, false);
             }
-
         }
 
-        private void toolStripButton2_Click(object sender, EventArgs e)
+        private void exportToExcel_Click(object sender, EventArgs e)
         {
-
-            excelapp = new Excel.Application();
+            try
+            {
+                excelapp = new Excel.Application();
+            }
+            catch (COMException)
+            {
+                return;
+            }
             excelapp.Visible = true;
 
             excelapp.SheetsInNewWorkbook = 3;
             excelapp.Workbooks.Add(Type.Missing);
-
 
             excelappworkbooks = excelapp.Workbooks;
             excelappworkbook = excelappworkbooks[1];
@@ -848,7 +802,6 @@ namespace LaserBeamMeasurement
             excelcells.Font.Italic = true;
             excelcells.Font.Bold = true;
 
-
             excelcells = excelworksheet.get_Range("D1", "D1");
 
             excelcells.Value2 = " X filter ";
@@ -872,7 +825,7 @@ namespace LaserBeamMeasurement
 
             excelcells = excelworksheet.get_Range("Y11", "Y11");
 
-            excelcells.Value2 = textBox1.Text;
+            excelcells.Value2 = pixelPitchTextBox.Text;
             excelcells.Font.Size = 12;
             excelcells.Font.Italic = true;
             excelcells.Font.Bold = true;
@@ -884,10 +837,9 @@ namespace LaserBeamMeasurement
             excelcells.Font.Italic = true;
             excelcells.Font.Bold = true;
 
-
             excelcells = excelworksheet.get_Range("Y13", "Y13");
 
-            excelcells.Value2 = textBox2.Text;
+            excelcells.Value2 = zeroLevelTextBox.Text;
             excelcells.Font.Size = 12;
             excelcells.Font.Italic = true;
             excelcells.Font.Bold = true;
@@ -906,7 +858,6 @@ namespace LaserBeamMeasurement
             excelcells.Font.Italic = true;
             excelcells.Font.Bold = true;
 
-
             excelcells = excelworksheet.get_Range("H26", "H26");
 
             excelcells.Value2 = label3.Text;
@@ -921,10 +872,7 @@ namespace LaserBeamMeasurement
             excelcells.Font.Italic = true;
             excelcells.Font.Bold = true;
 
-
-
             // chart export
-
             Excel.ChartObjects chartsobjrcts =
             (Excel.ChartObjects)excelworksheet.ChartObjects(Type.Missing);
             Excel.ChartObject chartsobjrct = chartsobjrcts.Add(300, 50, 300, 300);
@@ -948,45 +896,33 @@ namespace LaserBeamMeasurement
             chartsobjrct3.Chart.ChartWizard(excelworksheet.get_Range("E1", "E" + Convert.ToString(_imagedata.spotsize + 20)),
             Excel.XlChartType.xlLine, 2, Excel.XlRowCol.xlColumns, Type.Missing,
               1, true, " ", Type.Missing);
-
-
-
-
-
-
-
         }
 
 
-
-
-        private void checkBox2_CheckStateChanged(object sender, EventArgs e)
+        private void divergenceCheckBox_CheckStateChanged(object sender, EventArgs e)
         {
-            if (checkBox2.Checked)
+            if (divergenceCheckBox.Checked)
             {
-                label9.Visible = true; listBox1.Visible = true;
+                wavelengthLabel.Visible = true; waveLengthListBox.Visible = true;
             }
             else
             {
-                label9.Visible = false; listBox1.Visible = false;
+                wavelengthLabel.Visible = false; waveLengthListBox.Visible = false;
             }
-
         }
 
-        private void listBox1_SelectedIndexChanged(object sender, EventArgs e)
+        private void wavelengthListBox_SelectedIndexChanged(object sender, EventArgs e)
         {
-            dataGridView1[0, 2].Value = Convert.ToString(((_beamparameters.sizex_med * pixsize / 1000) / _imagedata.wavelength[listBox1.SelectedIndex]) * 180 / Math.PI);
-            dataGridView1[1, 2].Value = Convert.ToString(((_beamparameters.sizey_med * pixsize / 1000) / _imagedata.wavelength[listBox1.SelectedIndex]) * 180 / Math.PI);
-            dataGridView1[2, 2].Value = Convert.ToString(((_beamparameters.sizex_med_filter * pixsize / 1000) / _imagedata.wavelength[listBox1.SelectedIndex]) * 180 / Math.PI);
-            dataGridView1[3, 2].Value = Convert.ToString(((_beamparameters.sizey_med_filter * pixsize / 1000) / _imagedata.wavelength[listBox1.SelectedIndex]) * 180 / Math.PI);
+            dataGridView1[0, 2].Value = Convert.ToString(((_beamparameters.sizex_med * pixsize / 1000) / _imagedata.wavelength[waveLengthListBox.SelectedIndex]) * 180 / Math.PI);
+            dataGridView1[1, 2].Value = Convert.ToString(((_beamparameters.sizey_med * pixsize / 1000) / _imagedata.wavelength[waveLengthListBox.SelectedIndex]) * 180 / Math.PI);
+            dataGridView1[2, 2].Value = Convert.ToString(((_beamparameters.sizex_med_filter * pixsize / 1000) / _imagedata.wavelength[waveLengthListBox.SelectedIndex]) * 180 / Math.PI);
+            dataGridView1[3, 2].Value = Convert.ToString(((_beamparameters.sizey_med_filter * pixsize / 1000) / _imagedata.wavelength[waveLengthListBox.SelectedIndex]) * 180 / Math.PI);
 
             dataGridView1.Refresh();
         }
 
-        private void button2_Click_1(object sender, EventArgs e)
+        private void _3dButton_Click(object sender, EventArgs e)
         {
-
-
             int n = 400, m = 400, i, j, nlev = 20;
             float[,] zmat = new float[n, m];
             float[] xray = new float[n];
@@ -996,7 +932,6 @@ namespace LaserBeamMeasurement
             double x, y, step;
             double stepx = 400.0 / (n - 1);
             double stepy = 400.0 / (m - 1);
-
 
             for (i = 0; i < n; i++)
             {
@@ -1052,17 +987,16 @@ namespace LaserBeamMeasurement
             dislin.shdmod("smooth", "surface");
             dislin.surshd(xray, n, yray, m, zmat);
             dislin.disfin();
+        }
+
+        private void dynamicTabPage_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void staticTabPage_Click(object sender, EventArgs e)
+        {
 
         }
     }
-
-
 }
-
-
-
-
-
-
-
-

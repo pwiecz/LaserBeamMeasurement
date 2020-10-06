@@ -112,8 +112,6 @@ namespace LaserBeamMeasurement
                 else
                     ChartY[index] = gf.Data[y0, x0, 0];
 
-
-
                 index++;
 
                 int x = x0 + sx;
